@@ -1,0 +1,526 @@
+const WHITE_SAPCE = /\s/;
+
+const STRING_SYMBOL = /[\'\"]/;
+const NUMETIC_SYMBOL = /[0-9]/;
+const HEX_NUMETIC_SYMBOL = /[0-9a-fA-F]/;
+
+// 目前使用Symbol防止同名异常
+const TOKEN_TYPES = {
+	IDENTIFY: Symbol("Identify"),
+	STRING_LITERAL: Symbol("StringLiteral"),
+	NUMETIC_LITERAL: Symbol("NumeticLiteral"),
+	BOOLEAN_LITERAL: Symbol("BooleanLiteral"),
+	NULL_LITERAL: Symbol("NullLiteral"),
+	SINGLE_SYMBOL: Symbol("SingleSymbol"),
+	MUTIPLE_SYMBOL: Symbol("MutipleSymbol"),
+	KEYWORD: Symbol("Keyword"),
+	COMMENT: Symbol("Comment"),
+	TEMPLATE_STRING: Symbol("TemplateString"),
+}
+
+const singleSymbols = {};
+[
+	"=",
+	">",
+	"<",
+	"(",
+	")",
+	"{",
+	"}",
+	"[",
+	"]",
+	",",
+	";",
+	":",
+	".",
+	"?",
+	"+",
+	"-",
+	"*",
+	"/",
+	"~",
+	"!",
+	"`",
+	"\\",
+	"|",
+	"^",
+	"&",
+].forEach(key => {
+	singleSymbols[key] = true;
+});
+
+// 多符号
+const mutipleSymbols = {};
+[
+	"?.",
+
+	"=>",
+
+	"==",
+	"===",
+	"!=",
+	"!==",
+
+	"&&",
+
+	"||",
+	"??",
+
+	">=",
+	">==",
+	"<=",
+	"<==",
+
+	"+=",
+	"-=",
+	"**=",
+	"*=",
+	"/=",
+	"%=",
+	"<<=",
+	">>=",
+	">>>=",
+	"&=",
+	"^=",
+	"|=",
+	"&&=",
+	"||=",
+	"??=",
+
+	"++",
+	"--",
+
+	"...",
+
+	"**",
+
+	"<<",
+	">>",
+	">>>",
+
+].forEach(key => {
+	// 以每个首字符作为开始存储，数组中存储可用的
+	if (!mutipleSymbols[key[0]]) {
+		mutipleSymbols[key[0]] = [];
+	}
+	mutipleSymbols[key[0]].push(key);
+});
+
+// 一般关键字
+const keyWords = {};
+[
+	"var",
+	"let",
+	"const",
+	"function",
+	"import",
+	"from",
+	"export",
+	"as",
+	"default",
+	"in",
+	"of",
+	"instanceof",
+	"if",
+	"else",
+	"while",
+	"for",
+	"return",
+	"typeof",
+	"void",
+	"delete",
+	"await",
+	"async",
+	"new",
+	"break",
+	"continue",
+	"try",
+	"catch",
+	"finally",
+	"switch",
+	"case",
+].forEach(key => {
+	keyWords[key] = TOKEN_TYPES.KEYWORD;
+});
+
+// 特殊关键词（基础类型字面量，关键字等）,加入到 keywords 中
+Object.entries({
+	"true": TOKEN_TYPES.BOOLEAN_LITERAL,
+	"false": TOKEN_TYPES.BOOLEAN_LITERAL,
+	"null": TOKEN_TYPES.NULL_LITERAL,
+}).forEach(([key, type]) => {
+	keyWords[key] = type;
+});
+
+// 已匹配的集合，和输入字符串
+function matchMultiple(matchedSet, input) {
+	const fourSymbols = input.substr(0, 4);
+	const threeSymbols = fourSymbols.substr(0, 3);
+	const twoSymbol = threeSymbols.substr(0, 2);
+
+	let matched;
+
+	matched = matchedSet.includes(fourSymbols);
+	if (matched) {
+		return fourSymbols;
+	}
+
+	// 先匹配三个字符，再匹配两个字符
+	matched = matchedSet.includes(threeSymbols);
+	if (matched) {
+		return threeSymbols;
+	}
+	matched = matchedSet.includes(twoSymbol);
+
+	return matched ? twoSymbol : false;
+}
+
+function isSingleSymbol(char) {
+	return !!singleSymbols[char];
+}
+
+function createToken(input, type) {
+	return (
+		type ? {
+			type,
+			value: input,
+		} : { value: input }
+	);
+}
+
+function scanne(code) {
+	// 特殊语法标记
+	const parenStack = [];
+	const preStartParens = [];
+
+	const blockStack = [];
+	let isTemplateString = false;
+	let currentTemplateStringDepth = 0;
+	const templateSymbolStack = [];
+	let currentTemplateStringRaw = "";
+
+	const tokens = [];
+	let cursor = 0;
+	let currentToken = "";
+
+	// 清空且返回已解析的token
+	function pushParsedToken() {
+		if (currentToken.length > 0) {
+			// 获取类型(如果是模板字符串就是模板类型)
+			const type = isTemplateString ? TOKEN_TYPES.TEMPLATE_STRING : (keyWords.hasOwnProperty(currentToken) && keyWords[currentToken]) /*必须是自有属性，不然原型链上可能有toString或者valueOf等方法，不检测的话导致这些关键词不可用*/;
+
+			// 有类型就用那个类型，否则使用 Identify标识符类型
+			const token = type ? createToken(currentToken, type) : createToken(currentToken, TOKEN_TYPES.IDENTIFY);
+
+			// for in for of 特殊标记, 加在 for 之后的开始括号上
+			// 遇到in of，在for中（在for的第一层括号内，不在表达式括号内）
+			if (currentToken === "in" && parenStack?.[parenStack.length - 1]?.tag === "for") {
+				parenStack[parenStack.length - 1].specialType = "ForInContent";
+			}
+			if (currentToken === "of" && parenStack?.[parenStack.length - 1]?.tag === "for") {
+				parenStack[parenStack.length - 1].specialType = "ForOfContent";
+			}
+			// 如果是模板字符串，添加raw
+			if (isTemplateString) {
+				// console.log(currentTemplateStringRaw);
+				token.raw = currentTemplateStringRaw;
+			}
+
+			// 添加
+			tokens.push(token);
+		}
+		currentToken = "";
+		// 当前模板字符串的 raw 也清空
+		currentTemplateStringRaw = "";
+	}
+
+	// 解析被相同符号包裹的字面量，string , regexp
+	function parseWrapLiteral(startSymbol /* 开始符号，可能是 " ' / */) {
+		let char;
+		let value = "";
+		let raw = "";
+		while (true) {
+			cursor += 1;
+			if (cursor >= code.length) {
+				console.log("failed to parse string");
+				return false;
+			}
+			char = code[cursor];
+			// 如果遇到符号就结束
+			if (char === startSymbol) {
+				break;
+			}
+			// 转义字符处理
+			if (char === "\\") {
+				raw += char;
+				// 跳过
+				cursor += 1;
+				const targetChar = code[cursor];
+				value += targetChar;
+				raw += targetChar;
+				continue;
+			}
+			value += char;
+			raw += char;
+		}
+		raw = startSymbol + raw + startSymbol;
+		return {
+			value,
+			raw,
+		};
+	}
+
+	function parseNumetic(firstNumetic) {
+		let numeticLiteral = firstNumetic;
+		let char;
+
+		// 非10进制
+		let noDecimal = false;
+		// 是否有一个点
+		let hadPoint = false;
+
+		// 16进制标识
+		let isHex = false;
+
+		// 去掉开头（开头已经检测过了，不需要再次检测）
+		cursor += 1;
+
+		// 十六进制，八进制，二进制 (匹配第二个字符)
+		char = code[cursor];
+		if(/[xXoObB]/.test(char)) {
+			numeticLiteral += char;
+			cursor += 1;
+			// 十六进制
+			if(char === "x") {
+				isHex = true;
+				noDecimal = true;
+			}
+		}
+
+		while (cursor < code.length) {
+
+			char = code[cursor];
+			// 数字可以带下划线_, 只有10进制可以带一个.
+			if (char === "_" || (!hadPoint && !noDecimal && char === ".") || (isHex ? HEX_NUMETIC_SYMBOL.test(char) : NUMETIC_SYMBOL.test(char))) {
+				if(char === ".") {
+					// 已有点
+					hadPoint = true;
+				}
+				numeticLiteral += char;
+				cursor += 1;
+			} else {
+				break;
+			}
+		}
+		// 以.结尾，则不是小数，而是属性获取，不解析为数字，cursor-1
+		if(numeticLiteral[numeticLiteral.length - 1] === ".") {
+			cursor -= 1;
+			numeticLiteral = numeticLiteral.slice(0, numeticLiteral.length - 1);
+		}
+		return numeticLiteral;
+	}
+
+	while (cursor < code.length) {
+		const char = code[cursor];
+
+		// 模板字符串的话，就直接下一个
+		if (isTemplateString) {
+			// 转义字符处理
+			if (char === "\\") {
+				// 把转义字符加入 raw
+				currentTemplateStringRaw += char;
+				// 把被转义字符加入两者
+				cursor += 1;
+				const targetChar = code[cursor];
+				currentToken += targetChar;
+				currentTemplateStringRaw += targetChar;
+				// 跳过被转义字符
+				cursor += 1;
+				continue;
+			}
+
+			if ((!(char === "{" && code[cursor - 1] === "$" && code[cursor - 2] !== "\\" /* 转义字符检测 */)) && char !== "`") {
+				cursor += 1;
+				currentToken += char;
+				currentTemplateStringRaw += char;
+				continue;
+			}
+		}
+
+		// 单行注释检测
+		if (code.substr(cursor, 2) == "//") {
+			pushParsedToken();
+			cursor += 2;
+
+			let comment = "";
+			// 遇到换行就结束
+			while (code[cursor] !== "\r" && code[cursor] !== "\n" && cursor < code.length) {
+				comment += code[cursor];
+				let c = code[cursor];
+				cursor += 1;
+			}
+			// 目前直接去除注释
+			// tokens.push(createToken(comment, TOKEN_TYPES.COMMENT));
+			continue;
+		}
+		// 多行注释检测
+		if (code.substr(cursor, 2) == "/*") {
+			pushParsedToken();
+			cursor += 2;
+			let comment = "";
+			while (code.substr(cursor, 2) !== "*/") {
+				comment += code[cursor];
+				cursor += 1;
+			}
+			// 目前直接去除注释
+			// tokens.push(createToken(comment, TOKEN_TYPES.COMMENT));
+			cursor += 2;
+			continue;
+		}
+		// 先检测是否可以匹配多个
+		const mutipleStartMatched = mutipleSymbols[char];
+		if (mutipleStartMatched) {
+			const mutipleMatched = matchMultiple(mutipleStartMatched, code.substr(cursor, 4));
+			if (mutipleMatched) {
+				// 运算符匹配成功，则首先将之前的字符(如果有的话)添加为token
+				pushParsedToken();
+				// cursor 添加匹配的运算符的长度
+				cursor += mutipleMatched.length;
+
+				// 遇到箭头函数，给已纪录的开始的箭头打标记,只对于带括号的箭头函数生效，用于后面语法分析的参数解析
+				if (mutipleMatched === "=>" && tokens[tokens.length - 1].value === ")") {
+					preStartParens[preStartParens.length - 1].specialType = "ArrowFunciton";
+				}
+
+				// 添加已匹配的运算符
+				tokens.push(createToken(mutipleMatched, TOKEN_TYPES.MUTIPLE_SYMBOL));
+				continue;
+			}
+		}
+		// 字符串处理
+		if (STRING_SYMBOL.test(char)) {
+			pushParsedToken();
+			const string = parseWrapLiteral(char);
+			if (string) {
+				tokens.push(createToken(string, TOKEN_TYPES.STRING_LITERAL));
+				// 跳过字符串结束符号
+				cursor += 1;
+				continue;
+			} else {
+				return false;
+			}
+		}
+		// 空白处理
+		if (WHITE_SAPCE.test(char)) {
+			pushParsedToken();
+			cursor += 1;
+			continue;
+		}
+		// 纯数字处理
+		if (currentToken.length === 0 && NUMETIC_SYMBOL.test(char)) {
+			const numetic = parseNumetic(char);
+			if (numetic) {
+				tokens.push(createToken(numetic, TOKEN_TYPES.NUMETIC_LITERAL));
+				continue;
+			} else {
+				return false;
+			}
+		}
+		// 单符号处理
+		if (isSingleSymbol(char)) {
+			// 添加原来的token
+			pushParsedToken();
+			const resultToken = createToken(char, TOKEN_TYPES.SINGLE_SYMBOL);
+
+			// 如果点后紧跟数字，则是小数的另一种写法
+			if(char == "." && NUMETIC_SYMBOL.test(code[cursor + 1])) {
+				// 跳过.
+				cursor += 1;
+				// 浮点数部分,从cursor开始
+				const floatNumeticPart = parseNumetic(code[cursor]);
+				if (floatNumeticPart) {
+					// 将.拼接到前面
+					tokens.push(createToken("." + String(floatNumeticPart), TOKEN_TYPES.NUMETIC_LITERAL));
+					continue;
+				} else {
+					return false;
+				}
+			}
+
+			// 括号和for循环标记
+			if (char === "(") {
+				// 打标记表示是for循环
+				if (tokens?.[tokens.length - 1]?.value === "for") {
+					resultToken.tag = "for";
+				}
+				parenStack.push(resultToken);
+			} else if (char === ")") {
+				const startBracket = parenStack.pop();
+				// 如果有消除标记
+				if (startBracket?.tag) {
+					delete startBracket.tag
+				}
+				preStartParens.push(startBracket);
+			}
+
+			// 花括号和模板字符串
+			if (char === "{") {
+
+				// 是模板字符串内，就做动作
+				if (isTemplateString && code[cursor - 1] === "$" && code[cursor - 2] !== "\\" /* 转义字符检测 */) {
+					// 获取上一个token
+					const preValue = tokens?.[tokens.length - 1]?.value;
+					// 超过一个字符，将$符号独立出去
+					if (preValue.length > 1) {
+						tokens[tokens.length - 1].value = preValue.slice(0, preValue.length - 1);
+						// 将$符号作为一个单符号添加
+						tokens.push(createToken("$", TOKEN_TYPES.SINGLE_SYMBOL));
+					} else {
+						// 只有一个字符，直接设置为一个 $
+						tokens[tokens.length - 1] = createToken("$", TOKEN_TYPES.SINGLE_SYMBOL);
+					}
+					resultToken.tag = "templateStringExpression";
+					currentTemplateStringDepth += 1;
+					isTemplateString = false;
+				}
+				blockStack.push(resultToken);
+			} else if (char === "}") {
+				const startSymbol = blockStack.pop();
+				if (startSymbol?.tag === "templateStringExpression") {
+					currentTemplateStringDepth -= 1;
+					isTemplateString = true;
+				}
+			}
+			if (char === "`") {
+				resultToken.templateStringDepth = currentTemplateStringDepth;
+				// 与上一个深度相同，则为结束模板字符串
+				if (templateSymbolStack?.[templateSymbolStack.length - 1]?.templateStringDepth === resultToken.templateStringDepth) {
+					isTemplateString = false;
+					templateSymbolStack.pop();
+				} else {
+					isTemplateString = true;
+					templateSymbolStack.push(resultToken);
+				}
+			}
+
+			// 添加该符号
+			tokens.push(resultToken);
+			cursor += 1;
+			continue;
+		}
+
+		cursor += 1;
+		currentToken += char;
+	}
+
+	// 添加末尾
+	pushParsedToken();
+
+	return tokens;
+}
+
+export {
+	TOKEN_TYPES
+}
+
+export { scanne };
