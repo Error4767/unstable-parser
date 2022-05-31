@@ -1731,6 +1731,15 @@ const transformers = (() => {
 			property: right,
 			optional: true,
 		}),
+		"new": ({argument})=> (argument.type === "CallExpression" ? {
+			type: "NewExpression",
+			callee: argument.callee,
+			arguments: argument.arguments || [],
+		} : {
+			type: "NewExpression",
+			callee: argument,
+			arguments: [],
+		}),
 	};
 	[
 		"=",
@@ -1850,12 +1859,12 @@ const transformers = (() => {
 			// 从右到左结合运算符
 			while (symbols.length > 0) {
 				const currentSymbol = symbols.pop().value;
-				result = {
+				result = normalizeComputeExpression({
 					type: ["++", "--"].includes(currentSymbol) ? "UpdateExpression" : "UnaryExpression",
 					prefix: true,
 					operator: currentSymbol,
 					argument: result,
-				}
+				})
 			}
 
 			return result;
