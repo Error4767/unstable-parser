@@ -27,6 +27,8 @@ const END_SYMBOLS = {
 	OF: { type: END_SYMBOL, value: "of" },
 	// return
 	RETURN: { type: END_SYMBOL, value: "return" },
+	// throw
+	THROW: { type: END_SYMBOL, value: "throw" },
 	// 分隔符
 	";": { type: END_SYMBOL, value: ";" },
 	",": { type: END_SYMBOL, value: "," },
@@ -281,6 +283,7 @@ ElseContent -> Statement | If
 While -> while ( Expression ) Block;
 
 Return -> return OptionalExpression
+Throw -> throw Expression
 
 Block -> { Statements }
 
@@ -299,11 +302,11 @@ Switch -> switch ( Expression ) { SwitchCases }
 SwitchCases -> SwitchCase SwitchCases | None
 SwitchCase -> case Expression : Statements | default : Statements
 
+Program -> Statements
 Statements -> Statement Statements | None
 Statement ->  
 	| Expression OptionalDelimter
 	| VariableDeclaration OptionalDelimter
-	| Block OptionalDelimter
 	| If OptionalDelimter
 	| import ImportIdentify string OptionalDelimter 
 	| export ExportContent OptionalDelimter 
@@ -315,6 +318,8 @@ Statement ->
 	| try Block OptionalCatchClause OptionalFinallyClause OptionalDelimter
 	| Block OptionalDelimter
 	| Switch OptionalDelimter
+	| Throw OptionalDelimter
+	| OptionalDelimter
 
 ImportIdentify -> ImportSpecifers from | None
 ImportSpecifers -> ImportDefault Imports | Imports
@@ -1313,6 +1318,13 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "OptionalExpression" },
 		],
 	],
+	// throw
+	Throw: [
+		[
+			END_SYMBOLS.THROW,
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+		],
+	],
 	// OptionalVariableDeclarationOrExpression（用于for循环括号内第一个）
 	OptionalVariableDeclarationOrExpression: [
 		[
@@ -1432,6 +1444,11 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Statements" },
 		]
 	],
+	Program: [
+		[
+			{ type: NOT_END_SYMBOL, value: "Statements" },
+		],
+	],
 	Statements: [
 		[
 			{ type: NOT_END_SYMBOL, value: "Statement" },
@@ -1506,6 +1523,10 @@ const not_end_symbols = {
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "Switch" },
+			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+		],
+		[
+			{ type: NOT_END_SYMBOL, value: "Throw" },
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		// 空语句
@@ -1648,6 +1669,7 @@ const transformers = (() => {
 		While,
 
 		Return,
+		Throw,
 
 		ForContent,
 
@@ -1661,6 +1683,7 @@ const transformers = (() => {
 		Switch,
 		SwitchCase,
 
+		Program,
 		Statements,
 		Statement,
 
@@ -1731,7 +1754,7 @@ const transformers = (() => {
 			property: right,
 			optional: true,
 		}),
-		"new": ({argument})=> (argument.type === "CallExpression" ? {
+		"new": ({ argument }) => (argument.type === "CallExpression" ? {
 			type: "NewExpression",
 			callee: argument.callee,
 			arguments: argument.arguments || [],
@@ -2289,6 +2312,10 @@ const transformers = (() => {
 			type: "ReturnStatement",
 			argument: input[1],
 		})],
+		[Throw[0], input => ({
+			type: "ThrowStatement",
+			argument: input[1],
+		})],
 
 		[ForContent[0], input => {
 			const result = {
@@ -2389,6 +2416,11 @@ const transformers = (() => {
 			type: "Statements",
 			Statements: input,
 		})],
+		// 程序
+		[Program[0], input=> ({
+			type: "Program",
+			body: input,
+		})],
 		// 表达式
 		[Statement[0], input => {
 			// 如果是函数声明，直接返回，否则包装为 ExpressionStatement
@@ -2459,8 +2491,10 @@ const transformers = (() => {
 		[Statement[11], input => (input[0])],
 		// switch语句
 		[Statement[12], input => (input[0])],
+		// throw
+		[Statement[13], input => (input[0])],
 		// 空语句
-		[Statement[13], () => ({
+		[Statement[14], () => ({
 			type: "EmptyStatement",
 		})],
 
@@ -2810,7 +2844,7 @@ function parse(input) {
 	const tokens = [...input].reverse();
 
 	const token = tokens[tokens.length - 1];
-	const production = analyzeTable.Statements.get(token.type) || analyzeTable.Statements.get(token.value);
+	const production = analyzeTable.Program.get(token.type) || analyzeTable.Program.get(token.value);
 
 	const matchProd = (production, container) => production.every((sym, index) => {
 		if (!container.children) {
@@ -2896,7 +2930,7 @@ function parse(input) {
 					// console.log("idsadkl", token, sym, analyzeTable?.[name]);
 					return true;
 				}
-				console.log(p, name, token, production,index, sym, analyzeTable?.[name]);
+				console.log(p, name, token, production, index, sym, analyzeTable?.[name]);
 				return false;
 			}
 

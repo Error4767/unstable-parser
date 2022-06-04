@@ -139,6 +139,7 @@ const keyWords = {};
 	"finally",
 	"switch",
 	"case",
+	"throw",
 ].forEach(key => {
 	keyWords[key] = TOKEN_TYPES.KEYWORD;
 });
