@@ -1,18 +1,18 @@
-const WHITE_SAPCE = /\s/;
+const WHITE_SPACE = /\s/;
 
 const STRING_SYMBOL = /[\'\"]/;
-const NUMETIC_SYMBOL = /[0-9]/;
-const HEX_NUMETIC_SYMBOL = /[0-9a-fA-F]/;
+const NUMERTIC_SYMBOL = /[0-9]/;
+const HEX_NUMERTIC_SYMBOL = /[0-9a-fA-F]/;
 
 // 目前使用Symbol防止同名异常
 const TOKEN_TYPES = {
 	IDENTIFY: Symbol("Identify"),
 	STRING_LITERAL: Symbol("StringLiteral"),
-	NUMETIC_LITERAL: Symbol("NumeticLiteral"),
+	NUMERTIC_LITERAL: Symbol("NumerticLiteral"),
 	BOOLEAN_LITERAL: Symbol("BooleanLiteral"),
 	NULL_LITERAL: Symbol("NullLiteral"),
 	SINGLE_SYMBOL: Symbol("SingleSymbol"),
-	MUTIPLE_SYMBOL: Symbol("MutipleSymbol"),
+	MULTIPLE_SYMBOL: Symbol("MultipleSymbol"),
 	KEYWORD: Symbol("Keyword"),
 	COMMENT: Symbol("Comment"),
 	TEMPLATE_STRING: Symbol("TemplateString"),
@@ -50,7 +50,7 @@ const singleSymbols = {};
 });
 
 // 多符号
-const mutipleSymbols = {};
+const multipleSymbols = {};
 [
 	"?.",
 
@@ -100,10 +100,10 @@ const mutipleSymbols = {};
 
 ].forEach(key => {
 	// 以每个首字符作为开始存储，数组中存储可用的
-	if (!mutipleSymbols[key[0]]) {
-		mutipleSymbols[key[0]] = [];
+	if (!multipleSymbols[key[0]]) {
+		multipleSymbols[key[0]] = [];
 	}
-	mutipleSymbols[key[0]].push(key);
+	multipleSymbols[key[0]].push(key);
 });
 
 // 一般关键字
@@ -271,8 +271,8 @@ function scanne(code) {
 		};
 	}
 
-	function parseNumetic(firstNumetic) {
-		let numeticLiteral = firstNumetic;
+	function parseNumertic(firstNumertic) {
+		let numerticLiteral = firstNumertic;
 		let char;
 
 		// 非10进制
@@ -289,7 +289,7 @@ function scanne(code) {
 		// 十六进制，八进制，二进制 (匹配第二个字符)
 		char = code[cursor];
 		if(/[xXoObB]/.test(char)) {
-			numeticLiteral += char;
+			numerticLiteral += char;
 			cursor += 1;
 			// 十六进制
 			if(char === "x") {
@@ -302,23 +302,23 @@ function scanne(code) {
 
 			char = code[cursor];
 			// 数字可以带下划线_, 只有10进制可以带一个.
-			if (char === "_" || (!hadPoint && !noDecimal && char === ".") || (isHex ? HEX_NUMETIC_SYMBOL.test(char) : NUMETIC_SYMBOL.test(char))) {
+			if (char === "_" || (!hadPoint && !noDecimal && char === ".") || (isHex ? HEX_NUMERTIC_SYMBOL.test(char) : NUMERTIC_SYMBOL.test(char))) {
 				if(char === ".") {
 					// 已有点
 					hadPoint = true;
 				}
-				numeticLiteral += char;
+				numerticLiteral += char;
 				cursor += 1;
 			} else {
 				break;
 			}
 		}
 		// 以.结尾，则不是小数，而是属性获取，不解析为数字，cursor-1
-		if(numeticLiteral[numeticLiteral.length - 1] === ".") {
+		if(numerticLiteral[numerticLiteral.length - 1] === ".") {
 			cursor -= 1;
-			numeticLiteral = numeticLiteral.slice(0, numeticLiteral.length - 1);
+			numerticLiteral = numerticLiteral.slice(0, numerticLiteral.length - 1);
 		}
-		return numeticLiteral;
+		return numerticLiteral;
 	}
 
 	while (cursor < code.length) {
@@ -379,22 +379,22 @@ function scanne(code) {
 			continue;
 		}
 		// 先检测是否可以匹配多个
-		const mutipleStartMatched = mutipleSymbols[char];
-		if (mutipleStartMatched) {
-			const mutipleMatched = matchMultiple(mutipleStartMatched, code.substr(cursor, 4));
-			if (mutipleMatched) {
+		const multipleStartMatched = multipleSymbols[char];
+		if (multipleStartMatched) {
+			const multipleMatched = matchMultiple(multipleStartMatched, code.substr(cursor, 4));
+			if (multipleMatched) {
 				// 运算符匹配成功，则首先将之前的字符(如果有的话)添加为token
 				pushParsedToken();
 				// cursor 添加匹配的运算符的长度
-				cursor += mutipleMatched.length;
+				cursor += multipleMatched.length;
 
 				// 遇到箭头函数，给已纪录的开始的箭头打标记,只对于带括号的箭头函数生效，用于后面语法分析的参数解析
-				if (mutipleMatched === "=>" && tokens[tokens.length - 1].value === ")") {
+				if (multipleMatched === "=>" && tokens[tokens.length - 1].value === ")") {
 					preStartParens[preStartParens.length - 1].specialType = "ArrowFunciton";
 				}
 
 				// 添加已匹配的运算符
-				tokens.push(createToken(mutipleMatched, TOKEN_TYPES.MUTIPLE_SYMBOL));
+				tokens.push(createToken(multipleMatched, TOKEN_TYPES.MULTIPLE_SYMBOL));
 				continue;
 			}
 		}
@@ -412,16 +412,16 @@ function scanne(code) {
 			}
 		}
 		// 空白处理
-		if (WHITE_SAPCE.test(char)) {
+		if (WHITE_SPACE.test(char)) {
 			pushParsedToken();
 			cursor += 1;
 			continue;
 		}
 		// 纯数字处理
-		if (currentToken.length === 0 && NUMETIC_SYMBOL.test(char)) {
-			const numetic = parseNumetic(char);
-			if (numetic) {
-				tokens.push(createToken(numetic, TOKEN_TYPES.NUMETIC_LITERAL));
+		if (currentToken.length === 0 && NUMERTIC_SYMBOL.test(char)) {
+			const numertic = parseNumertic(char);
+			if (numertic) {
+				tokens.push(createToken(numertic, TOKEN_TYPES.NUMERTIC_LITERAL));
 				continue;
 			} else {
 				return false;
@@ -434,14 +434,14 @@ function scanne(code) {
 			const resultToken = createToken(char, TOKEN_TYPES.SINGLE_SYMBOL);
 
 			// 如果点后紧跟数字，则是小数的另一种写法
-			if(char == "." && NUMETIC_SYMBOL.test(code[cursor + 1])) {
+			if(char == "." && NUMERTIC_SYMBOL.test(code[cursor + 1])) {
 				// 跳过.
 				cursor += 1;
 				// 浮点数部分,从cursor开始
-				const floatNumeticPart = parseNumetic(code[cursor]);
-				if (floatNumeticPart) {
+				const floatNumerticPart = parseNumertic(code[cursor]);
+				if (floatNumerticPart) {
 					// 将.拼接到前面
-					tokens.push(createToken("." + String(floatNumeticPart), TOKEN_TYPES.NUMETIC_LITERAL));
+					tokens.push(createToken("." + String(floatNumerticPart), TOKEN_TYPES.NUMERTIC_LITERAL));
 					continue;
 				} else {
 					return false;

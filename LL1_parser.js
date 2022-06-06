@@ -170,11 +170,11 @@ const DATA_TYPE_SYMBOLS = {
 			return result;
 		}
 	},
-	[TOKEN_TYPES.NUMETIC_LITERAL]: {
+	[TOKEN_TYPES.NUMERTIC_LITERAL]: {
 		type: END_SYMBOL,
-		dataType: TOKEN_TYPES.NUMETIC_LITERAL,
+		dataType: TOKEN_TYPES.NUMERTIC_LITERAL,
 		match(token) {
-			const result = token.type === TOKEN_TYPES.NUMETIC_LITERAL;
+			const result = token.type === TOKEN_TYPES.NUMERTIC_LITERAL;
 			// 标准化转换
 			if (result) {
 				token.type = "Literal";
@@ -981,7 +981,7 @@ const not_end_symbols = {
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
 		],
 		[
-			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMETIC_LITERAL],
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
 		],
 		[
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
