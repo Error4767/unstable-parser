@@ -357,7 +357,6 @@ function scanne(code) {
 			// 遇到换行就结束
 			while (code[cursor] !== "\r" && code[cursor] !== "\n" && cursor < code.length) {
 				comment += code[cursor];
-				let c = code[cursor];
 				cursor += 1;
 			}
 			// 目前直接去除注释

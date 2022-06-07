@@ -49,17 +49,16 @@ const END_SYMBOLS = {
 	// 左侧的运算符
 	"!": { type: END_SYMBOL, value: "!" },
 	"~": { type: END_SYMBOL, value: "~" },
-	"+": { type: END_SYMBOL, value: "+" },
-	"-": { type: END_SYMBOL, value: "-" },
 	"++": { type: END_SYMBOL, value: "++" },
 	"--": { type: END_SYMBOL, value: "--" },
 	TYPEOF: { type: END_SYMBOL, value: "typeof" },
 	DELETE: { type: END_SYMBOL, value: "delete" },
 	AWAIT: { type: END_SYMBOL, value: "await" },
 	VOID: { type: END_SYMBOL, value: "void" },
-	// 算数运算符
+	// 左侧和算数运算符
 	"+": { type: END_SYMBOL, value: "+" },
 	"-": { type: END_SYMBOL, value: "-" },
+	// 算数运算符
 	"*": { type: END_SYMBOL, value: "*" },
 	"/": { type: END_SYMBOL, value: "/" },
 	"%": { type: END_SYMBOL, value: "%" },
