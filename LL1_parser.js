@@ -2416,7 +2416,7 @@ const transformers = (() => {
 			Statements: input,
 		})],
 		// 程序
-		[Program[0], input=> ({
+		[Program[0], input => ({
 			type: "Program",
 			body: input,
 		})],
@@ -2832,135 +2832,142 @@ const followSets = getFollowSet(firstSets);
 const selectSets = getSelectSet(firstSets, followSets);
 const analyzeTable = createAnalyzeTable(selectSets);
 
-window.ll1Infos = {
-	firstSets,
-	followSets,
-	selectSets,
-	analyzeTable,
+function getLL1Infos() {
+	return {
+		END_SYMBOLS,
+		not_end_symbols,
+		DATA_TYPE_SYMBOLS,
+		hasNoneProductions,
+		transformers,
+		firstSets,
+		followSets,
+		selectSets,
+		analyzeTable,
+	}
 }
 
-function parse(input) {
-	const tokens = [...input].reverse();
+	function parse(input) {
+		const tokens = [...input].reverse();
 
-	const token = tokens[tokens.length - 1];
-	const production = analyzeTable.Program.get(token.type) || analyzeTable.Program.get(token.value);
+		const token = tokens[tokens.length - 1];
+		const production = analyzeTable.Program.get(token.type) || analyzeTable.Program.get(token.value);
 
-	const matchProd = (production, container) => production.every((sym, index) => {
-		if (!container.children) {
-			container.children = [];
-		}
-		if (sym.type === END_SYMBOL) {
-			const token = tokens.pop();
-			// 遇到空，直接结束
-			if (sym === END_SYMBOLS.NONE) {
-				return true;
+		const matchProd = (production, container) => production.every((sym, index) => {
+			if (!container.children) {
+				container.children = [];
 			}
-
-			// 如果有match, 调用其 match 方法匹配
-			if (sym.match && sym.match(token)) {
-				container.children.push(token);
-				return true;
-			}
-
-			// 没有数据类型，直接检测值是否相等
-			if (token.value === sym.value) {
-				container.children.push(token);
-				return true;
-			}
-			console.log("failed to parse end sym", token, sym, production, container);
-			return false;
-		} else {
-			const token = tokens[tokens.length - 1];
-			// 没有token了，表示已经结束, 直接true
-			if (!token) {
-				return true;
-			}
-
-			// 结束符号，直接匹配，返回 true
-			if (token.value === END_SYMBOLS.END_BLOCK.value || token.value === END_SYMBOLS.END_BRACKET.value) {
-				return true;
-			}
-
-			// 特殊处理
-			const specialType = token.specialType;
-			if (specialType) {
-				// 箭头函数参数特殊处理
-				if (specialType === "ArrowFunciton") {
-					// 设置下一个token采用函数参数解析(如果不是空参数)
-					if (tokens?.[tokens.length - 2]?.value !== ")") {
-						tokens[tokens.length - 2].production = not_end_symbols.FunctionParamsDeclaration[0];
-					}
-				}
-				// for in, for of 处理
-				if (specialType === "ForInContent") {
-					token.production = not_end_symbols.ForInContent[0];
-				}
-				if (specialType === "ForOfContent") {
-					token.production = not_end_symbols.ForOfContent[0];
-				}
-				// 删除掉该属性，只需要处理一次
-				delete token.specialType;
-			}
-
-			const name = sym.value;
-			// console.log(token.type, analyzeTable?.[name]?.get(token.type), token, sym);
-			// 尝试用类型从表中查找所需产生式，(如果是关键字，则前面的找不到，会根据value找)
-			let p = analyzeTable?.[name]?.get(token.type) || analyzeTable?.[name]?.get(token.value);
-
-			// console.log(p, name, token, production,index, sym, analyzeTable?.[name]);
-
-			// 某些情况特殊处理的产生式
-			if (token.production) {
-				p = token.production;
-				// 取完就删除，否则会重新进入该部分无限递归
-				delete token.production;
-			}
-
-			// 如果是 KEYWORD 则可能是 Identify, 即关键字作为标识符,使用标识符查找产生式
-			if (!p && token.type === TOKEN_TYPES.KEYWORD && name !== "Statements" /* 语句中不可存在关键字(这样也对于switch中case不做处理) */) {
-				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
-			}
-
-			// 无法匹配
-			if (!p) {
-				// 如果可空，就视为空
-				if (hasNoneProductions[name]) {
-					// console.log("optional", name, sym, token);
-					// console.log("idsadkl", token, sym, analyzeTable?.[name]);
+			if (sym.type === END_SYMBOL) {
+				const token = tokens.pop();
+				// 遇到空，直接结束
+				if (sym === END_SYMBOLS.NONE) {
 					return true;
 				}
-				console.log(p, name, token, production, index, sym, analyzeTable?.[name]);
+
+				// 如果有match, 调用其 match 方法匹配
+				if (sym.match && sym.match(token)) {
+					container.children.push(token);
+					return true;
+				}
+
+				// 没有数据类型，直接检测值是否相等
+				if (token.value === sym.value) {
+					container.children.push(token);
+					return true;
+				}
+				console.log("failed to parse end sym", token, sym, production, container);
 				return false;
-			}
-
-			// flatProductions 会检测拍平处理，对于一些特殊的产生式，给他拍平就好
-			if (flatProductions.includes(p)) {
-				const matched = matchProd(p, container);
-				if (!matched) {
-					console.log("failed to parse expr");
-					return false;
-				}
-				return true;
 			} else {
-				const subSyntax = { production: p };
-				const matched = matchProd(p, subSyntax);
-				if (!matched) {
-					console.log("failed to parse expr");
+				const token = tokens[tokens.length - 1];
+				// 没有token了，表示已经结束, 直接true
+				if (!token) {
+					return true;
+				}
+
+				// 结束符号，直接匹配，返回 true
+				if (token.value === END_SYMBOLS.END_BLOCK.value || token.value === END_SYMBOLS.END_BRACKET.value) {
+					return true;
+				}
+
+				// 特殊处理
+				const specialType = token.specialType;
+				if (specialType) {
+					// 箭头函数参数特殊处理
+					if (specialType === "ArrowFunciton") {
+						// 设置下一个token采用函数参数解析(如果不是空参数)
+						if (tokens?.[tokens.length - 2]?.value !== ")") {
+							tokens[tokens.length - 2].production = not_end_symbols.FunctionParamsDeclaration[0];
+						}
+					}
+					// for in, for of 处理
+					if (specialType === "ForInContent") {
+						token.production = not_end_symbols.ForInContent[0];
+					}
+					if (specialType === "ForOfContent") {
+						token.production = not_end_symbols.ForOfContent[0];
+					}
+					// 删除掉该属性，只需要处理一次
+					delete token.specialType;
+				}
+
+				const name = sym.value;
+				// console.log(token.type, analyzeTable?.[name]?.get(token.type), token, sym);
+				// 尝试用类型从表中查找所需产生式，(如果是关键字，则前面的找不到，会根据value找)
+				let p = analyzeTable?.[name]?.get(token.type) || analyzeTable?.[name]?.get(token.value);
+
+				// console.log(p, name, token, production,index, sym, analyzeTable?.[name]);
+
+				// 某些情况特殊处理的产生式
+				if (token.production) {
+					p = token.production;
+					// 取完就删除，否则会重新进入该部分无限递归
+					delete token.production;
+				}
+
+				// 如果是 KEYWORD 则可能是 Identify, 即关键字作为标识符,使用标识符查找产生式
+				if (!p && token.type === TOKEN_TYPES.KEYWORD && name !== "Statements" /* 语句中不可存在关键字(这样也对于switch中case不做处理) */) {
+					p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
+				}
+
+				// 无法匹配
+				if (!p) {
+					// 如果可空，就视为空
+					if (hasNoneProductions[name]) {
+						// console.log("optional", name, sym, token);
+						// console.log("idsadkl", token, sym, analyzeTable?.[name]);
+						return true;
+					}
+					console.log(p, name, token, production, index, sym, analyzeTable?.[name]);
 					return false;
 				}
-				container.children.push(subSyntax);
-				return true;
-			}
-		}
-	})
 
-	const container = {
-		production,
-	};
-	matchProd(production, container);
-	// console.log(tokens);
-	return container;
-}
+				// flatProductions 会检测拍平处理，对于一些特殊的产生式，给他拍平就好
+				if (flatProductions.includes(p)) {
+					const matched = matchProd(p, container);
+					if (!matched) {
+						console.log("failed to parse expr");
+						return false;
+					}
+					return true;
+				} else {
+					const subSyntax = { production: p };
+					const matched = matchProd(p, subSyntax);
+					if (!matched) {
+						console.log("failed to parse expr");
+						return false;
+					}
+					container.children.push(subSyntax);
+					return true;
+				}
+			}
+		})
+
+		const container = {
+			production,
+		};
+		matchProd(production, container);
+		// console.log(tokens);
+		return container;
+	}
 
 function transform(parsed) {
 	if (parsed.children) {
@@ -2994,4 +3001,5 @@ function transform(parsed) {
 export {
 	parse,
 	transform,
+	getLL1Infos,
 }
