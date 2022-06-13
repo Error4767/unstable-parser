@@ -1,8 +1,8 @@
 import { scanne } from "./scanner.js";
-import { parse, transform } from "./LL1_parser.js";
+import { parse as parseToProduction, transform } from "./LL1_parser.js";
 
 export { getLL1Infos } from "./LL1_parser.js";
 
-export default function parseCode(code) {
-  return transform(parse(scanne(code)));
-}
+const parse = (code) => transform(parseToProduction(scanne(code)));
+
+export { parse };
