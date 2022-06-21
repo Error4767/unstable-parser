@@ -922,7 +922,25 @@ const not_end_symbols = {
 			END_SYMBOLS["..."],
 			{ type: NOT_END_SYMBOL, value: "Term1_" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
-		]
+		],
+		// 数值字面量属性名
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
+			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		// 布尔值字面量属性名
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
+			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		// null字面量属性名
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NULL_LITERAL],
+			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
 	],
 	ObjectAttributeRight: [
 		// 普通值
@@ -1947,6 +1965,18 @@ const transformers = (() => {
 		}],
 		// 展开操作符
 		[ObjectAttribute[3], input => ({
+			type: "SpreadElement",
+			argument: input[1],
+		})],
+		[ObjectAttribute[4], input => ({
+			type: "SpreadElement",
+			argument: input[1],
+		})],
+		[ObjectAttribute[5], input => ({
+			type: "SpreadElement",
+			argument: input[1],
+		})],
+		[ObjectAttribute[6], input => ({
 			type: "SpreadElement",
 			argument: input[1],
 		})],
