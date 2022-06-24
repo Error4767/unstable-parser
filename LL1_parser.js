@@ -220,13 +220,16 @@ OptionalDelimter -> ; | None
 OptionalIdentify -> Identify | None
 
 ObjectLiteral -> { ObjectContent }
-ObjectContent -> ObjectAttrbute ObjectContent | None
-ObjectAttrbute -> 
-	|Identify ObjectAttrbuteRight OptionalComma 
-	| StringLiteral ObjectAttrbuteRight OptionalComma 
-	| [ Expression ] ObjectAttrbuteRight OptionalComma
+ObjectContent -> ObjectAttribute ObjectContent | None
+ObjectAttribute -> 
+	|Identify ObjectAttributeRight OptionalComma 
+	| StringLiteral ObjectAttributeRight OptionalComma 
+	| [ Expression ] ObjectAttributeRight OptionalComma
 	| ... Term1_ OptionalComma
-ObjectAttrbuteRight -> : Term1_ | ( FunctionParamsDeclaration ) Block | None
+	| number ObjectAttributeRight OptionalComma 
+	| booleam ObjectAttributeRight OptionalComma 
+	| null ObjectAttributeRight OptionalComma 
+ObjectAttributeRight -> : Term1_ | ( FunctionParamsDeclaration ) Block | None
 
 ArrayLiteral -> [ ArrayContent ]
 ArrayContent -> ArrayItem ArrayContent | None
@@ -262,10 +265,11 @@ ObjectPatternOptionalDefaultValue -> = Term1_ | None
 ArrayPattern -> [ ArrayPatternItems ]
 ArrayPatternItems -> ArrayPatternItem ArrayPatternItems | None
 ArrayPatternItem -> 
-	|Identify DefaultValue OptionalComma 
+	| Identify DefaultValue OptionalComma 
 	| ArrayPattern DefaultValue OptionalComma 
 	| ObjectPattern DefaultValue OptionalComma 
 	| ... Identify OptionalComma
+	| ,
 
 FunctionDeclaration -> function OptionalIdentify ( FunctionParamsDeclaration ) Block
 FunctionParamsDeclaration -> FunctionParam FunctionParamsDeclaration | None
@@ -1220,6 +1224,9 @@ const not_end_symbols = {
 			END_SYMBOLS["..."],
 			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		[
+			END_SYMBOLS[","],
 		]
 	],
 	FunctionDeclaration: [
@@ -2233,7 +2240,7 @@ const transformers = (() => {
 			properties: input.slice(1, input.length - 1),
 		})],
 		// 正常元素处理（去除剩余参数）
-		...ArrayPatternItem.slice(0, ArrayPatternItem.length - 1).map(ArrayPatternItemProduction => [ArrayPatternItemProduction, input => {
+		...ArrayPatternItem.slice(0, ArrayPatternItem.length - 2).map(ArrayPatternItemProduction => [ArrayPatternItemProduction, input => {
 			// 索引1是逗号或者不存在，就没有默认值
 			if (input?.[1]?.value === "," || !input[1]) {
 				return input[0];
@@ -2247,10 +2254,12 @@ const transformers = (() => {
 		}]
 		),
 		// 剩余参数处理
-		[ArrayPatternItem[ArrayPatternItem.length - 1], input => ({
+		[ArrayPatternItem[ArrayPatternItem.length - 2], input => ({
 			type: "RestElement",
 			name: input[1],
 		})],
+		// 逗号处理，空解构
+		[ArrayPatternItem[ArrayPatternItem.length - 1], () => null],
 		[ArrayPattern[0], input => ({
 			type: "ArrayPattern",
 			elements: input.slice(1, input.length - 1),
