@@ -1808,15 +1808,38 @@ const transformers = (() => {
 			property: right,
 			optional: true,
 		}),
-		"new": ({ argument }) => (argument.type === "CallExpression" ? {
-			type: "NewExpression",
-			callee: argument.callee,
-			arguments: argument.arguments || [],
-		} : {
-			type: "NewExpression",
-			callee: argument,
-			arguments: [],
-		}),
+		"new": ({ argument }) => {
+			// new 的结合性
+			// 如果 new 右侧存在函数调用表达式，则最左侧的表达式视为 new 的调用
+			let left = argument;
+			// 最后一个函数调用表达式
+			let endCallExpression = null;
+			while (true) {
+				if (left.type === "CallExpression") {
+					endCallExpression = left;
+				}
+				left = left.callee || left.object;
+				// 如果没有左侧了，终端循环 
+				if (!left) {
+					break;
+				}
+			}
+			if(endCallExpression) {
+				endCallExpression.type = "NewExpression";
+				return argument;
+			}else {
+				if(argument.type === "CallExpression") {
+					argument.type = "NewExpression";
+					return argument;
+				}else {
+					return {
+						type: "NewExpression",
+						callee: argument,
+						arguments: [],
+					}
+				}
+			}
+		},
 	};
 	[
 		"=",
@@ -2308,19 +2331,19 @@ const transformers = (() => {
 				generator: false,
 			};
 			// 参数开始括号的索引
-			let bracketStartIndex = input.findIndex(v=> v?.value === "(");
+			let bracketStartIndex = input.findIndex(v => v?.value === "(");
 
 			// 如果括号在第二个，则是匿名函数
-			if(bracketStartIndex === 1) {
+			if (bracketStartIndex === 1) {
 				result.id = null;
-			}else if(bracketStartIndex === 2) {
+			} else if (bracketStartIndex === 2) {
 				// 括号在第三个，则可能是具名函数或者是匿名生成器函数
-				if(input[1]?.value === "*") {
+				if (input[1]?.value === "*") {
 					result.generator = true;
-				}else {
+				} else {
 					result.id = input[1];
 				}
-			}else if(bracketStartIndex === 3) {
+			} else if (bracketStartIndex === 3) {
 				// 括号在第四个，则是具名生成器函数
 				result.generator = true;
 				result.id = input[2];
