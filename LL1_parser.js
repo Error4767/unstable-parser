@@ -1815,6 +1815,16 @@ const transformers = (() => {
 			// 最后一个函数调用表达式
 			let endCallExpression = null;
 			while (true) {
+				// 遇到最高优先级就退出，因为没有更高优先级
+				if(left.maxPriority) {
+					// 删除优先级标识
+					delete left.maxPriority;
+					break;
+				}
+				// 遇到子 new 退出循环，因为没有更高优先级
+				if(left.type === "NewExpression") {
+					break;
+				}
 				if (left.type === "CallExpression") {
 					endCallExpression = left;
 				}
@@ -1828,6 +1838,15 @@ const transformers = (() => {
 				endCallExpression.type = "NewExpression";
 				return argument;
 			}else {
+				if(argument.maxPriority) {
+					// 删除优先级标识
+					delete argument.maxPriority;
+					return {
+						type: "NewExpression",
+						callee: argument,
+						arguments: [],
+					}
+				}
 				if(argument.type === "CallExpression") {
 					argument.type = "NewExpression";
 					return argument;
@@ -1969,6 +1988,8 @@ const transformers = (() => {
 
 			return result;
 		} else {
+			// 去除优先级标识
+			delete input[0].maxPriority;
 			return input[0];
 		}
 	}
@@ -2067,7 +2088,11 @@ const transformers = (() => {
 		[Expr[1], input => {
 			if (input?.[input.length - 1].value === ")") {
 				// 普通表达式
-				return input[1];
+				return {
+					// 赋予最高优先级，防止和 new 结合出现问题
+					maxPriority: true,
+					...input[1],
+				};
 			} else {
 				// 箭头函数特殊处理
 				return {
