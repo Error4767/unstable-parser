@@ -1816,9 +1816,7 @@ const transformers = (() => {
 			let endCallExpression = null;
 			while (true) {
 				// 遇到最高优先级就退出，因为没有更高优先级
-				if(left.maxPriority) {
-					// 删除优先级标识
-					delete left.maxPriority;
+				if(left.highPriority) {
 					break;
 				}
 				// 遇到子 new 退出循环，因为没有更高优先级
@@ -1829,7 +1827,7 @@ const transformers = (() => {
 					endCallExpression = left;
 				}
 				left = left.callee || left.object;
-				// 如果没有左侧了，终端循环 
+				// 如果没有左侧了，中断循环 
 				if (!left) {
 					break;
 				}
@@ -1838,9 +1836,7 @@ const transformers = (() => {
 				endCallExpression.type = "NewExpression";
 				return argument;
 			}else {
-				if(argument.maxPriority) {
-					// 删除优先级标识
-					delete argument.maxPriority;
+				if(argument.highPriority) {
 					return {
 						type: "NewExpression",
 						callee: argument,
@@ -1988,8 +1984,6 @@ const transformers = (() => {
 
 			return result;
 		} else {
-			// 去除优先级标识
-			delete input[0].maxPriority;
 			return input[0];
 		}
 	}
@@ -2089,8 +2083,8 @@ const transformers = (() => {
 			if (input?.[input.length - 1].value === ")") {
 				// 普通表达式
 				return {
-					// 赋予最高优先级，防止和 new 结合出现问题
-					maxPriority: true,
+					// 赋予高优先级，防止和 new 结合出现问题
+					highPriority: true,
 					...input[1],
 				};
 			} else {
