@@ -3056,6 +3056,10 @@ function parse(input) {
 			if (!p && token.type === TOKEN_TYPES.KEYWORD && name !== "Statements" /* 语句中不可存在关键字(这样也对于switch中case不做处理) */) {
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
+			// 动态加载表达式，使用标识符获取查找产生式，因为语法上和表达式相同
+			if(token.value === "import" && tokens[tokens.length - 2].value === "(") {
+				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
+			}
 
 			// 无法匹配
 			if (!p) {
