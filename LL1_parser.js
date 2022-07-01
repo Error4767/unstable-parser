@@ -407,7 +407,7 @@ Term16_ -> Term17 Term17_
 Term17 -> new Term17 | None
 Term17_ -> Expr Term18
 Term18 -> . Identify Term18 | [ Expression ] Term18 | ?. OptionalChainingAttributeName Term18 | ( Expression ) Term18 | None
-OptionalChainingAttributeName -> Identify | [ Expression ]
+OptionalChainingAttributeName -> Identify | [ Expression ] | ( OptionalExpression )
 */
 
 // 对象的key为非终结符，值为可用的产生式数组
@@ -897,6 +897,12 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Expression" },
 			END_SYMBOLS["]"],
 		],
+		// 可以是函数调用
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "OptionalExpression" },
+			END_SYMBOLS.END_BRACKET,
+		]
 	],
 	// 可空逗号
 	OptionalComma: [
@@ -1796,6 +1802,12 @@ const transformers = (() => {
 			arguments: right && (right.type === "SequenceExpression" ? [...right.expressions] : [right]),
 			optional: false,
 		}),
+		"?.()": ({ left, right }) => ({
+			type: "CallExpression",
+			callee: left,
+			arguments: right && (right.type === "SequenceExpression" ? [...right.expressions] : [right]),
+			optional: true,
+		}),
 		".": ({ left, right }) => ({
 			type: "MemberExpression",
 			object: left,
@@ -2241,6 +2253,20 @@ const transformers = (() => {
 			input[3] && result.push(input[3]);
 			return result;
 		}],
+		[Term18[2], input => {
+			if (input?.[1]?.type === "OptionalCallExpression") {
+				const result = [
+					{
+						type: TOKEN_TYPES.MUTIPLE_SYMBOL,
+						value: "?.()",
+					},
+					(input[1].params || null),
+				];
+				input[2] && result.push(input[2]);
+				return result;
+			}
+			return input;
+		}],
 		// 函数调用
 		[Term18[3], input => {
 			// 不带参数
@@ -2264,10 +2290,16 @@ const transformers = (() => {
 				input[1],
 			];
 			input[3] && result.push(input[3]);
-			return result
+			return result;
 		}],
 		// 可选链成员操作符语法
 		[OptionalChainingAttributeName[1], input => (input[1])],
+		// 可选链函数调用
+		[OptionalChainingAttributeName[2], input => ({
+			// 这个标识的临时的
+			type: "OptionalCallExpression",
+			params: input.slice(1, input.length - 1)[0],
+		})],
 	];
 
 	return new Map([
