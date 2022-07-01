@@ -1816,11 +1816,11 @@ const transformers = (() => {
 			let endCallExpression = null;
 			while (true) {
 				// 遇到最高优先级就退出，因为没有更高优先级
-				if(left.highPriority) {
+				if (left.highPriority) {
 					break;
 				}
 				// 遇到子 new 退出循环，因为没有更高优先级
-				if(left.type === "NewExpression") {
+				if (left.type === "NewExpression") {
 					break;
 				}
 				if (left.type === "CallExpression") {
@@ -1832,21 +1832,21 @@ const transformers = (() => {
 					break;
 				}
 			}
-			if(endCallExpression) {
+			if (endCallExpression) {
 				endCallExpression.type = "NewExpression";
 				return argument;
-			}else {
-				if(argument.highPriority) {
+			} else {
+				if (argument.highPriority) {
 					return {
 						type: "NewExpression",
 						callee: argument,
 						arguments: [],
 					}
 				}
-				if(argument.type === "CallExpression") {
+				if (argument.type === "CallExpression") {
 					argument.type = "NewExpression";
 					return argument;
-				}else {
+				} else {
 					return {
 						type: "NewExpression",
 						callee: argument,
@@ -1894,35 +1894,60 @@ const transformers = (() => {
 		return transform ? transform(binaryExpression) : binaryExpression;
 	}
 
-	const singleCalculateSymbolHandler = input => {
-
-		const first = input[0];
-		if (input.length > 1) {
-			// 超过两个，则是多个同优先级运算符
-			if (input[1].length > 2) {
-				// 多个同优先级运算符, 目前全部左结合
-				return singleCalculateSymbolHandler([
-					normalizeComputeExpression({
+	function createSingleCalculateSymbolHandler(associative = "left") {
+		return input => {
+			const first = input[0];
+			if (input.length > 1) {
+				// 超过两个，则是多个同优先级运算符
+				if (input[1].length > 2) {
+					// 多个同优先级运算符左结合
+					if (associative === "left") {
+						return singleCalculateSymbolHandler([
+							normalizeComputeExpression({
+								type: "BinaryExpression",
+								operator: input[1][0].value,
+								left: input[0],
+								right: input[1][1],
+							}),
+							input[1][2],
+						]);
+					}
+					// 多个同优先级运算符右结合
+					if (associative === "right") {
+						// 拍平产生式
+						const tokens = input.flat(Number.MAX_SAFE_INTEGER);
+						let result = tokens.pop();
+						while (tokens.length >= 2) {
+							// 每次取出两个，分别是运算符和左侧表达式
+							let [{ value: operator }, leftExpression] = [tokens.pop(), tokens.pop()];
+							result = normalizeComputeExpression({
+								type: "BinaryExpression",
+								operator,
+								left: leftExpression,
+								right: result,
+							});
+						}
+						return result;
+					}
+				} else {
+					// 单个，直接返回
+					return normalizeComputeExpression({
 						type: "BinaryExpression",
 						operator: input[1][0].value,
 						left: input[0],
 						right: input[1][1],
-					}),
-					input[1][2],
-				]);
+					})
+				}
 			} else {
-				// 单个，直接返回
-				return normalizeComputeExpression({
-					type: "BinaryExpression",
-					operator: input[1][0].value,
-					left: input[0],
-					right: input[1][1],
-				})
+				return first;
 			}
-		} else {
-			return first;
-		}
-	};
+		};
+	}
+
+	// 左结合二进制运算
+	const singleCalculateSymbolHandler = createSingleCalculateSymbolHandler("left");
+	// 右结合二进制运算
+	const singleCalculateSymbolHandlerRightAssociative = createSingleCalculateSymbolHandler("right");
 
 	// 运算符处理,包括三元运算符
 	const conditionHandler = input => {
@@ -1938,7 +1963,6 @@ const transformers = (() => {
 
 	// 三元运算符右侧部分处理
 	const conditionCalculateSymbolHandler = input => {
-		// console.log(input);
 		const index = input.findIndex(v => v.value === ":");
 
 		const thenExpression = input.slice(1, index);
@@ -1974,12 +1998,19 @@ const transformers = (() => {
 			// 从右到左结合运算符
 			while (symbols.length > 0) {
 				const currentSymbol = symbols.pop().value;
-				result = normalizeComputeExpression({
-					type: ["++", "--"].includes(currentSymbol) ? "UpdateExpression" : "UnaryExpression",
-					prefix: true,
-					operator: currentSymbol,
-					argument: result,
-				})
+				if (currentSymbol === "await") {
+					result = normalizeComputeExpression({
+						type: "AwaitExpression",
+						argument: result,
+					});
+				} else {
+					result = normalizeComputeExpression({
+						type: ["++", "--"].includes(currentSymbol) ? "UpdateExpression" : "UnaryExpression",
+						prefix: true,
+						operator: currentSymbol,
+						argument: result,
+					})
+				}
 			}
 
 			return result;
@@ -2163,7 +2194,7 @@ const transformers = (() => {
 			};
 		}],
 		[TemplateStringElement[1], input => (input[2])],
-		[Term1_[0], singleCalculateSymbolHandler],
+		[Term1_[0], singleCalculateSymbolHandlerRightAssociative],
 		// generator
 		[Term1_[1], input => ({
 			type: "YieldExpression",
@@ -2182,7 +2213,7 @@ const transformers = (() => {
 		[Term10_[0], singleCalculateSymbolHandler],
 		[Term11_[0], singleCalculateSymbolHandler],
 		[Term12_[0], singleCalculateSymbolHandler],
-		[Term13_[0], singleCalculateSymbolHandler],
+		[Term13_[0], singleCalculateSymbolHandlerRightAssociative],
 		[Term14_[0], leftComputeHandler],
 		[Term15_[0], input => {
 			if (input[1]) {
@@ -3057,7 +3088,7 @@ function parse(input) {
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
 			// 动态加载表达式，使用标识符获取查找产生式，因为语法上和表达式相同
-			if(token.value === "import" && tokens[tokens.length - 2].value === "(") {
+			if (token.value === "import" && tokens[tokens.length - 2].value === "(") {
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
 
