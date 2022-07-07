@@ -871,17 +871,30 @@ const not_end_symbols = {
 		[
 			END_SYMBOLS["--"],
 		],
-		// 模板字符串可以算作是一种后置运算符
-		[
-			{ type: NOT_END_SYMBOL, value: "TemplateLiteral" },
-		],
 		[
 			END_SYMBOLS.NONE,
 		],
 	],
 	Term16_: [
-		// new 为左侧运算符 右侧表达式, 所以 先 Term17 再 Term17_
 		[
+			{ type: NOT_END_SYMBOL, value: "TermWithOptionalTagTemplate_" },
+			{ type: NOT_END_SYMBOL, value: "TermWithOptionalTagTemplate" },
+		]
+	],
+	// 可选标签模板运算符表达式
+	TermWithOptionalTagTemplate: [
+		// 模板字符串可以算作是一种后置运算符
+		[
+			{ type: NOT_END_SYMBOL, value: "TemplateLiteral" },
+			{ type: NOT_END_SYMBOL, value: "TermWithOptionalTagTemplate" },
+		],
+		[
+			END_SYMBOLS.NONE,
+		],
+	],
+	TermWithOptionalTagTemplate_: [
+		[
+			// new 为左侧运算符 右侧表达式, 所以 先 Term17 再 Term17_
 			{ type: NOT_END_SYMBOL, value: "Term17" },
 			{ type: NOT_END_SYMBOL, value: "Term17_" },
 		]
@@ -1823,6 +1836,7 @@ const transformers = (() => {
 		Term14_,
 		Term15_,
 		Term16_,
+		TermWithOptionalTagTemplate_,
 		Term17_,
 
 		Term3,
@@ -2206,8 +2220,8 @@ const transformers = (() => {
 			// 上一个是否是表达式，如果是的话，下面需要在两个相连的表达式之间插入一个空模板字符
 			let preIsExpression = false;
 
-			// 如果第一个是表达式，在quasis最前面插入一个空的模板字符
-			if (content[0].type !== TOKEN_TYPES.TEMPLATE_STRING) {
+			// 如果模板字符串为空或者第一个是表达式，在quasis最前面插入一个空的模板字符
+			if (content.length === 0 || content[0].type !== TOKEN_TYPES.TEMPLATE_STRING) {
 				quasis.push(createNoneTemplateString());
 			}
 
@@ -2264,29 +2278,42 @@ const transformers = (() => {
 		[Term13_[0], singleCalculateSymbolHandlerRightAssociative],
 		[Term14_[0], leftComputeHandler],
 		[Term15_[0], input => {
-			// 后置递增，后置递减，标签模板
 			if (input[1]) {
-				// 标签模板检测
-				if (input[1]?.type === "TemplateLiteral") {
-					return {
-						type: "TaggedTemplateExpression",
-						tag: input[0],
-						quasi: input[1],
-					}
-				} else {
-					// 正常的更新表达式
-					return {
-						type: "UpdateExpression",
-						prefix: false,
-						operator: input[1],
-						argument: input[0],
-					}
+				// 正常的更新表达式
+				return {
+					type: "UpdateExpression",
+					prefix: false,
+					operator: input[1],
+					argument: input[0],
 				}
 			} else {
 				return input[0];
 			}
 		}],
-		[Term16_[0], leftComputeHandler],
+		[Term16_[0], input => {
+			if (input[1]) {
+				// 拍平
+				const patterns = input.flat(Number.MAX_SAFE_INTEGER);
+
+				let result = {
+					type: "TaggedTemplateExpression",
+					tag: patterns.shift(),
+					quasi: patterns.shift(),
+				}
+				// 左结合表达式
+				while(patterns.length > 0) {
+					result = {
+						type: "TaggedTemplateExpression",
+						tag: result,
+						quasi: patterns.shift(),
+					}
+				}
+				return result;
+			} else {
+				return input[0];
+			}
+		}],
+		[TermWithOptionalTagTemplate_[0], leftComputeHandler],
 		[Term17_[0], singleCalculateSymbolHandler],
 		// 计算属性名, 这里暂时也视为.运算符
 		[Term18[1], input => {
