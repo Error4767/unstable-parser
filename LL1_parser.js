@@ -335,12 +335,18 @@ Statement ->
 	| OptionalDelimter
 
 ImportIdentify -> ImportSpecifers from | None
-ImportSpecifers -> ImportDefault Imports | Imports
+ImportSpecifers -> ImportDefault Imports | Imports | * as Identify
 ImportDefault -> Identify
 Imports -> ModuleSpecifers | None
 
-ExportContent -> default Expression | ModuleSpecifers ExportRedirect | VariableDeclaration | FunctionDeclaration
+ExportContent -> 
+	| default Expression 
+	| ModuleSpecifers ExportRedirect 
+	| VariableDeclaration 
+	| FunctionDeclaration 
+	| * OptionalExportAllExported from StringLiteral
 ExportRedirect -> from StringLiteral | None
+OptionalExportAllExported -> as Identify
 
 ModuleSpecifers -> { ModuleSpecifersItems }
 ModuleSpecifersItems -> ModuleSpecifersItem ModuleSpecifersItems | None
@@ -1663,7 +1669,12 @@ const not_end_symbols = {
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "Imports" },
-		]
+		],
+		[
+			END_SYMBOLS["*"],
+			END_SYMBOLS.AS,
+			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+		],
 	],
 	ImportDefault: [
 		[
@@ -1693,6 +1704,21 @@ const not_end_symbols = {
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "FunctionDeclaration" },
+		],
+		[
+			END_SYMBOLS["*"],
+			{ type: NOT_END_SYMBOL, value: "OptionalExportAllExported" },
+			END_SYMBOLS.FROM,
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
+		],
+	],
+	OptionalExportAllExported: [
+		[
+			END_SYMBOLS.AS,
+			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+		],
+		[
+			END_SYMBOLS.NONE,
 		],
 	],
 	// 导出重定向 export {xx} from "xx";
@@ -1802,6 +1828,7 @@ const transformers = (() => {
 		ImportDefault,
 		Imports,
 		ExportContent,
+		OptionalExportAllExported,
 		ExportRedirect,
 		ModuleSpecifers,
 		ModuleSpecifersItems,
@@ -2821,7 +2848,13 @@ const transformers = (() => {
 			}
 		}],
 		[ImportSpecifers[1], input => (input[0])],
-
+		// 导入命名空间的形式
+		[ImportSpecifers[2], input => ([
+			{
+				type: "ImportNamespaceSpecifier",
+				local: input[2],
+			}
+		])],
 		[ExportRedirect[0], input => (input[1])],
 		[ExportContent[0], input => {
 			// 如果是函数，类型就是函数声明
@@ -2855,6 +2888,12 @@ const transformers = (() => {
 				declaration: input[0],
 			};
 		}],
+		[OptionalExportAllExported[0], input=> (input[1])],
+		[ExportContent[4], input => ({
+			type: "ExportAllDeclaration",
+			exported: input.length === 4 ? input[1] : null,
+			source: input[input.length - 1],
+		})],
 	]);
 })();
 
