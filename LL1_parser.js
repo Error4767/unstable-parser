@@ -245,10 +245,11 @@ ArrayItem -> Term1_ OptionalComma | ... Term1_ OptionalComma
 ArrowFunctionContent -> => ArrowFunctionBody | None
 ArrowFunctionBody -> Term1_ | Block
 
-Literal -> Identify ArrowFunctionContent | string | number | boolean | null | ObjectLiteral | ArrayLiteral | ` TemplateStringElements `
+Literal -> Identify ArrowFunctionContent | string | number | boolean | null | ObjectLiteral | ArrayLiteral | TemplateLiteral
 
+TemplateLiteral -> ` TemplateStringElements `
 TemplateStringElements -> TemplateStringElement TemplateStringElements | None
-TemplateStringElement -> TemplateString | $ { Expression }
+TemplateStringElement -> template_string | $ { Expression }
 
 VariableType -> var | let | const
 VariableDeclarator -> VariableIdentifier VariableInitial;
@@ -408,7 +409,7 @@ Term15 -> typeof Term15
 	| -- Term15_
 	| None
 Term15_ -> Term16_ Term16
-Term16 -> ++ | -- | None
+Term16 -> ++ | -- | TemplateLiteral | None
 Term16_ -> Term17 Term17_
 Term17 -> new Term17 | None
 Term17_ -> Expr Term18
@@ -435,6 +436,35 @@ const not_end_symbols = {
 		[// 是一个代码块
 			{ type: NOT_END_SYMBOL, value: "Block" },
 		],
+	],
+	// 模板字符串
+	TemplateLiteral: [
+		[
+			END_SYMBOLS["`"],
+			{ type: NOT_END_SYMBOL, value: "TemplateStringElements" },
+			END_SYMBOLS["`"],
+		]
+	],
+	TemplateStringElements: [
+		[
+			{ type: NOT_END_SYMBOL, value: "TemplateStringElement" },
+			{ type: NOT_END_SYMBOL, value: "TemplateStringElements" },
+		],
+		[
+			END_SYMBOLS.NONE,
+		],
+	],
+	// 模板字符串元素
+	TemplateStringElement: [
+		[
+			END_SYMBOLS[TOKEN_TYPES.TEMPLATE_STRING],
+		],
+		[
+			END_SYMBOLS["$"],
+			END_SYMBOLS.START_BLOCK,
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+			END_SYMBOLS.END_BLOCK,
+		]
 	],
 	Expression: [
 		[
@@ -841,6 +871,10 @@ const not_end_symbols = {
 		[
 			END_SYMBOLS["--"],
 		],
+		// 模板字符串可以算作是一种后置运算符
+		[
+			{ type: NOT_END_SYMBOL, value: "TemplateLiteral" },
+		],
 		[
 			END_SYMBOLS.NONE,
 		],
@@ -1056,33 +1090,9 @@ const not_end_symbols = {
 		[
 			{ type: NOT_END_SYMBOL, value: "ArrayLiteral" },
 		],
-		// 模板字符串
 		[
-			END_SYMBOLS["`"],
-			{ type: NOT_END_SYMBOL, value: "TemplateStringElements" },
-			END_SYMBOLS["`"],
+			{ type: NOT_END_SYMBOL, value: "TemplateLiteral" },
 		],
-	],
-	TemplateStringElements: [
-		[
-			{ type: NOT_END_SYMBOL, value: "TemplateStringElement" },
-			{ type: NOT_END_SYMBOL, value: "TemplateStringElements" },
-		],
-		[
-			END_SYMBOLS.NONE,
-		],
-	],
-	// 模板字符串元素
-	TemplateStringElement: [
-		[
-			END_SYMBOLS[TOKEN_TYPES.TEMPLATE_STRING],
-		],
-		[
-			END_SYMBOLS["$"],
-			END_SYMBOLS.START_BLOCK,
-			{ type: NOT_END_SYMBOL, value: "Expression" },
-			END_SYMBOLS.END_BLOCK,
-		]
 	],
 	Block: [
 		[
@@ -1792,6 +1802,7 @@ const transformers = (() => {
 
 		Literal,
 
+		TemplateLiteral,
 		TemplateStringElement,
 
 		Expression,
@@ -2177,7 +2188,7 @@ const transformers = (() => {
 			}
 		}],
 		// 模板字符串
-		[Literal[7], input => {
+		[TemplateLiteral[0], input => {
 			const content = input.slice(1, input.length - 1);
 
 			const quasis = [];
@@ -2253,12 +2264,23 @@ const transformers = (() => {
 		[Term13_[0], singleCalculateSymbolHandlerRightAssociative],
 		[Term14_[0], leftComputeHandler],
 		[Term15_[0], input => {
+			// 后置递增，后置递减，标签模板
 			if (input[1]) {
-				return {
-					type: "UpdateExpression",
-					prefix: false,
-					operator: input[1],
-					argument: input[0],
+				// 标签模板检测
+				if (input[1]?.type === "TemplateLiteral") {
+					return {
+						type: "TaggedTemplateExpression",
+						tag: input[0],
+						quasi: input[1],
+					}
+				} else {
+					// 正常的更新表达式
+					return {
+						type: "UpdateExpression",
+						prefix: false,
+						operator: input[1],
+						argument: input[0],
+					}
 				}
 			} else {
 				return input[0];
