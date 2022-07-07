@@ -127,6 +127,10 @@ const END_SYMBOLS = {
 	// switch
 	SWITCH: { type: END_SYMBOL, value: "switch" },
 	CASE: { type: END_SYMBOL, value: "case" },
+	// debugger
+	DEBUGGER: { type: END_SYMBOL, value: "debugger" },
+	// with
+	WITH: { type: END_SYMBOL, value: "with" },
 
 	[TOKEN_TYPES.TEMPLATE_STRING]: { // 模板字符串中的字符串
 		type: END_SYMBOL,
@@ -290,6 +294,8 @@ While -> while ( Expression ) Block;
 
 Return -> return OptionalExpression
 Throw -> throw Expression
+Debugger -> debugger
+With -> with ( Expression ) Block
 
 Block -> { Statements }
 
@@ -1385,6 +1391,16 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Expression" },
 		],
 	],
+	// with
+	With: [
+		[
+			END_SYMBOLS.WITH,
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+	],
 	// OptionalVariableDeclarationOrExpression（用于for循环括号内第一个）
 	OptionalVariableDeclarationOrExpression: [
 		[
@@ -1589,6 +1605,14 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Throw" },
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
+		[
+			END_SYMBOLS.DEBUGGER,
+			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+		],
+		[
+			{ type: NOT_END_SYMBOL, value: "With" },
+			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+		],
 		// 空语句
 		[
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
@@ -1730,6 +1754,7 @@ const transformers = (() => {
 
 		Return,
 		Throw,
+		With,
 
 		ForContent,
 
@@ -2507,7 +2532,11 @@ const transformers = (() => {
 			type: "ThrowStatement",
 			argument: input[1],
 		})],
-
+		[With[0], input => ({
+			type: "WithStatement",
+			object: input[2],
+			body: input[4],
+		})],
 		[ForContent[0], input => {
 			const result = {
 				type: "ForStatement",
@@ -2680,12 +2709,18 @@ const transformers = (() => {
 		}],
 		// 代码块
 		[Statement[11], input => (input[0])],
-		// switch语句
+		// switch
 		[Statement[12], input => (input[0])],
 		// throw
 		[Statement[13], input => (input[0])],
-		// 空语句
+		// debugger
 		[Statement[14], () => ({
+			type: "DebuggerStatement",
+		})],
+		// with
+		[Statement[15], input => (input[0])],
+		// 空语句
+		[Statement[16], () => ({
 			type: "EmptyStatement",
 		})],
 

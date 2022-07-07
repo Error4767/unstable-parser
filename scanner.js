@@ -141,6 +141,8 @@ const keyWords = {};
 	"case",
 	"throw",
 	"yield",
+	"debugger",
+	"with",
 ].forEach(key => {
 	keyWords[key] = TOKEN_TYPES.KEYWORD;
 });
