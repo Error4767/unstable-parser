@@ -409,8 +409,10 @@ Term15 -> typeof Term15
 	| -- Term15_
 	| None
 Term15_ -> Term16_ Term16
-Term16 -> ++ | -- | TemplateLiteral | None
-Term16_ -> Term17 Term17_
+Term16 -> ++ | -- | None
+Term16_ -> TermWithOptionalTagTemplate_ TermWithOptionalTagTemplate
+TermWithOptionalTagTemplate -> TemplateLiteral TermWithOptionalTagTemplate | None
+TermWithOptionalTagTemplate_ -> Term17 Term17_
 Term17 -> new Term17 | None
 Term17_ -> Expr Term18
 Term18 -> . Identify Term18 | [ Expression ] Term18 | ?. OptionalChainingAttributeName Term18 | ( Expression ) Term18 | None
