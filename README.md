@@ -254,6 +254,9 @@ export function debounce(fn, delay, self = null) {
 }
 ```
 #### 通过npm使用
+##### 安装
+npm install unstable-parser
+##### 使用
 ```javascript
 import { parse } from "unstable-parser";
 const ast = parse("需要解析的代码");
