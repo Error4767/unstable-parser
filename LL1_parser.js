@@ -2569,7 +2569,7 @@ const transformers = (() => {
 			}
 			// 如果没有索引1，则箭头函数没有主体，语法错误
 			console.log("syntax error, arrow Function don's has body");
-			return false;
+			throw new Error("parse failed");
 		}],
 		// 带括号异步箭头函数
 		[AsyncFunctionContent[2], input => {
@@ -2583,7 +2583,7 @@ const transformers = (() => {
 			}
 			// 如果结尾是)，则箭头函数没有主体，语法错误
 			console.log("syntax error, arrow Function don's has body");
-			return false;
+			throw new Error("parse failed");
 		}],
 		[If[0], input => {
 			const ifStatement = {
@@ -3192,7 +3192,7 @@ function parse(input) {
 				return true;
 			}
 			console.log("failed to parse end sym", token, sym, production, container);
-			return false;
+			throw new Error("parse failed");
 		} else {
 			const token = tokens[tokens.length - 1];
 			// 没有token了，表示已经结束, 直接true
@@ -3258,7 +3258,7 @@ function parse(input) {
 					return true;
 				}
 				console.log(p, name, token, production, index, sym, analyzeTable?.[name]);
-				return false;
+				throw new Error("parse failed");
 			}
 
 			// flatProductions 会检测拍平处理，对于一些特殊的产生式，给他拍平就好
@@ -3266,7 +3266,7 @@ function parse(input) {
 				const matched = matchProd(p, container);
 				if (!matched) {
 					console.log("failed to parse expr");
-					return false;
+					throw new Error("parse failed");
 				}
 				return true;
 			} else {
@@ -3274,7 +3274,7 @@ function parse(input) {
 				const matched = matchProd(p, subSyntax);
 				if (!matched) {
 					console.log("failed to parse expr");
-					return false;
+					throw new Error("parse failed");
 				}
 				container.children.push(subSyntax);
 				return true;
