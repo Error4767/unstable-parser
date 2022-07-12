@@ -1887,16 +1887,18 @@ const transformers = (() => {
 			arguments: right && (right.type === "SequenceExpression" ? [...right.expressions] : [right]),
 			optional: true,
 		}),
-		".": ({ left, right }) => ({
+		".": ({ left, right, operator: { computed = false } }) => ({
 			type: "MemberExpression",
 			object: left,
 			property: right,
+			computed,
 			optional: false,
 		}),
-		"?.": ({ left, right }) => ({
+		"?.": ({ left, right, operator: { computed = false } }) => ({
 			type: "MemberExpression",
 			object: left,
 			property: right,
+			computed,
 			optional: true,
 		}),
 		"new": ({ argument }) => {
@@ -1980,9 +1982,12 @@ const transformers = (() => {
 			};
 		}
 	});
-	function normalizeComputeExpression(binaryExpression) {
-		const transform = normalizeTransformers[binaryExpression.operator];
-		return transform ? transform(binaryExpression) : binaryExpression;
+	function normalizeComputeExpression(expression) {
+		const transform = normalizeTransformers[expression.operator.value];
+		const result = transform ? transform(expression) : expression;
+		// 如果还有 operator 属性的话，从里面取出实际的运算符字符串作为 operator, 因为不再需要一些额外标识
+		result.operator && (result.operator = result.operator.value);
+		return result;
 	}
 
 	function createSingleCalculateSymbolHandler(associative = "left") {
@@ -1996,7 +2001,7 @@ const transformers = (() => {
 						return singleCalculateSymbolHandler([
 							normalizeComputeExpression({
 								type: "BinaryExpression",
-								operator: input[1][0].value,
+								operator: input[1][0],
 								left: input[0],
 								right: input[1][1],
 							}),
@@ -2010,7 +2015,7 @@ const transformers = (() => {
 						let result = tokens.pop();
 						while (tokens.length >= 2) {
 							// 每次取出两个，分别是运算符和左侧表达式
-							let [{ value: operator }, leftExpression] = [tokens.pop(), tokens.pop()];
+							let [operator, leftExpression] = [tokens.pop(), tokens.pop()];
 							result = normalizeComputeExpression({
 								type: "BinaryExpression",
 								operator,
@@ -2024,7 +2029,7 @@ const transformers = (() => {
 					// 单个，直接返回
 					return normalizeComputeExpression({
 						type: "BinaryExpression",
-						operator: input[1][0].value,
+						operator: input[1][0],
 						left: input[0],
 						right: input[1][1],
 					})
@@ -2088,17 +2093,17 @@ const transformers = (() => {
 
 			// 从右到左结合运算符
 			while (symbols.length > 0) {
-				const currentSymbol = symbols.pop().value;
-				if (currentSymbol === "await") {
-					result = normalizeComputeExpression({
+				const operator = symbols.pop();
+				if (operator.value === "await") {
+					result = {
 						type: "AwaitExpression",
 						argument: result,
-					});
+					};
 				} else {
 					result = normalizeComputeExpression({
-						type: ["++", "--"].includes(currentSymbol) ? "UpdateExpression" : "UnaryExpression",
+						type: ["++", "--"].includes(operator.value) ? "UpdateExpression" : "UnaryExpression",
 						prefix: true,
-						operator: currentSymbol,
+						operator,
 						argument: result,
 					})
 				}
@@ -2321,12 +2326,12 @@ const transformers = (() => {
 		[Term15_[0], input => {
 			if (input[1]) {
 				// 正常的更新表达式
-				return {
+				return normalizeComputeExpression({
 					type: "UpdateExpression",
 					prefix: false,
 					operator: input[1],
 					argument: input[0],
-				}
+				});
 			} else {
 				return input[0];
 			}
@@ -2342,7 +2347,7 @@ const transformers = (() => {
 					quasi: patterns.shift(),
 				}
 				// 左结合表达式
-				while(patterns.length > 0) {
+				while (patterns.length > 0) {
 					result = {
 						type: "TaggedTemplateExpression",
 						tag: result,
@@ -2361,6 +2366,8 @@ const transformers = (() => {
 			const result = [
 				{
 					type: TOKEN_TYPES.SINGLE_SYMBOL,
+					// 计算属性标记
+					computed: true,
 					value: ".",
 				},
 				input[1],
@@ -2379,6 +2386,11 @@ const transformers = (() => {
 				];
 				input[2] && result.push(input[2]);
 				return result;
+			}
+			// 计算属性名处理
+			if(input?.[1]?.type === "OptionalComputeAttributeExpression") {
+				input[0].computed = true;
+				input[1] = input[1].expression;
 			}
 			return input;
 		}],
@@ -2407,8 +2419,11 @@ const transformers = (() => {
 			input[3] && result.push(input[3]);
 			return result;
 		}],
-		// 可选链成员操作符语法
-		[OptionalChainingAttributeName[1], input => (input[1])],
+		// 可选链计算属性名
+		[OptionalChainingAttributeName[1], input => ({
+			type: "OptionalComputeAttributeExpression",
+			expression: input[1],
+		})],
 		// 可选链函数调用
 		[OptionalChainingAttributeName[2], input => ({
 			// 这个标识的临时的
@@ -2900,7 +2915,7 @@ const transformers = (() => {
 				declaration: input[0],
 			};
 		}],
-		[OptionalExportAllExported[0], input=> (input[1])],
+		[OptionalExportAllExported[0], input => (input[1])],
 		[ExportContent[4], input => ({
 			type: "ExportAllDeclaration",
 			exported: input.length === 4 ? input[1] : null,
