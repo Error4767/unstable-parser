@@ -199,7 +199,7 @@ const DATA_TYPE_SYMBOLS = {
 			if (result) {
 				token.type = "Literal";
 				token.raw = token.value;
-				token.value = Boolean(token.raw);
+				token.value = token.raw === "true";
 			}
 			return result;
 		}
@@ -2158,6 +2158,7 @@ const transformers = (() => {
 				type: "Property",
 				key: input[1],
 				value: input[3],
+				computed: true,
 			}
 		}],
 		// 展开操作符
@@ -2166,16 +2167,27 @@ const transformers = (() => {
 			argument: input[1],
 		})],
 		[ObjectAttribute[4], input => ({
-			type: "SpreadElement",
-			argument: input[1],
+			type: "Property",
+			key: input[0],
+			value: input[1],
 		})],
 		[ObjectAttribute[5], input => ({
-			type: "SpreadElement",
-			argument: input[1],
+			type: "Property",
+			// boolean 作为 属性名
+			key: {
+				type: "Identifier",
+				name: input[0].raw,
+			},
+			value: input[1],
 		})],
 		[ObjectAttribute[6], input => ({
-			type: "SpreadElement",
-			argument: input[1],
+			type: "Property",
+			// null 作为 属性名
+			key: {
+				type: "Identifier",
+				name: input[0].raw,
+			},
+			value: input[1],
 		})],
 		[ObjectLiteral[0], input => ({
 			type: "ObjectExpression",
