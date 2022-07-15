@@ -2393,7 +2393,7 @@ const transformers = (() => {
 				return result;
 			}
 			// 计算属性名处理
-			if(input?.[1]?.type === "OptionalComputeAttributeExpression") {
+			if (input?.[1]?.type === "OptionalComputeAttributeExpression") {
 				input[0].computed = true;
 				input[1] = input[1].expression;
 			}
@@ -2678,7 +2678,9 @@ const transformers = (() => {
 						left: {
 							type: "VariableDeclaration",
 							kind: input[1].value,
-							id: input[2],
+							declarations: [
+								{ type: "VariableDeclarator", id: input[2], init: null }
+							],
 						},
 						right: input[4],
 						body: input[6],
