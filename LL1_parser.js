@@ -240,7 +240,7 @@ ObjectAttributeRight -> : Term1_ | ( FunctionParamsDeclaration ) Block | None
 
 ArrayLiteral -> [ ArrayContent ]
 ArrayContent -> ArrayItem ArrayContent | None
-ArrayItem -> Term1_ OptionalComma | ... Term1_ OptionalComma
+ArrayItem -> Term1_ OptionalComma | ... Term1_ OptionalComma | ,
 
 ArrowFunctionContent -> => ArrowFunctionBody | None
 ArrowFunctionBody -> Term1_ | Block
@@ -1085,6 +1085,9 @@ const not_end_symbols = {
 			END_SYMBOLS["..."],
 			{ type: NOT_END_SYMBOL, value: "Term1_" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		[
+			END_SYMBOLS[","],
 		],
 	],
 	Literal: [
@@ -2122,6 +2125,8 @@ const transformers = (() => {
 			type: "SpreadElement",
 			argument: input[1],
 		})],
+		// empty
+		[ArrayItem[2], () => null],
 		[ArrayLiteral[0], input => ({
 			type: "ArrayExpression",
 			// 截取内容部分
