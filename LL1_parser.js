@@ -421,7 +421,7 @@ TermWithOptionalTagTemplate -> TemplateLiteral TermWithOptionalTagTemplate | Non
 TermWithOptionalTagTemplate_ -> Term17 Term17_
 Term17 -> new Term17 | None
 Term17_ -> Expr Term18
-Term18 -> . Identify Term18 | [ Expression ] Term18 | ?. OptionalChainingAttributeName Term18 | ( Expression ) Term18 | None
+Term18 -> . Identify Term18 | [ Expression ] Term18 | ?. OptionalChainingAttributeName Term18 | ( OptionalExpression ) Term18 | None
 OptionalChainingAttributeName -> Identify | [ Expression ] | ( OptionalExpression )
 */
 
@@ -942,7 +942,7 @@ const not_end_symbols = {
 		],
 		[
 			END_SYMBOLS.START_BRACKET,
-			{ type: NOT_END_SYMBOL, value: "Expression" },
+			{ type: NOT_END_SYMBOL, value: "OptionalExpression" },
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Term18" },
 		],
@@ -3231,11 +3231,6 @@ function parse(input) {
 			const token = tokens[tokens.length - 1];
 			// 没有token了，表示已经结束, 直接true
 			if (!token) {
-				return true;
-			}
-
-			// 结束符号，直接匹配，返回 true
-			if (token.value === END_SYMBOLS.END_BLOCK.value || token.value === END_SYMBOLS.END_BRACKET.value) {
 				return true;
 			}
 
