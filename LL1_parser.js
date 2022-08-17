@@ -265,9 +265,8 @@ DefaultValue -> = Term1_ | None
 
 ObjectPattern -> { ObjectPatternItems }
 ObjectPatternItems -> ObjectPatternItem ObjectPatternItems | None
-ObjectPatternItem -> Identify ObjectPatternOptionalRename ObjectPatternOptionalDefaultValue OptionalComma | ... Identify OptionalComma
-ObjectPatternOptionalRename -> : ObjectPatternOptionalRenameValue | None
-ObjectPatternOptionalRenameValue -> Identify | ObjectPattern | ArrayPattern
+ObjectPatternItem -> Identify ObjectPatternOptionalRename ObjectPatternOptionalDefaultValue OptionalComma | ... VariableIdentifier OptionalComma
+ObjectPatternOptionalRename -> : VariableIdentifier | None
 ObjectPatternOptionalDefaultValue -> = Term1_ | None
 
 ArrayPattern -> [ ArrayPatternItems ]
@@ -276,13 +275,13 @@ ArrayPatternItem ->
 	| Identify DefaultValue OptionalComma 
 	| ArrayPattern DefaultValue OptionalComma 
 	| ObjectPattern DefaultValue OptionalComma 
-	| ... Identify OptionalComma
+	| ... VariableIdentifier OptionalComma
 	| ,
 
 FunctionDeclaration -> function OptionalIdentify ( FunctionParamsDeclaration ) Block
 FunctionParamsDeclaration -> FunctionParam FunctionParamsDeclaration | None
-FunctionParam -> FunctionParamIdentify DefaultValue OptionalComma | ... Identify OptionalComma
-FunctionParamIdentify -> Identify | ObjectPattern | ArrayPattern
+FunctionParam -> VariableIdentifier DefaultValue OptionalComma | ... Identify OptionalComma
+VariableIdentifier -> Identify | ObjectPattern | ArrayPattern
 
 AsyncFunction -> async AsyncFunctionContent
 AsyncFunctionContent -> FunctionDeclaration | Identify ArrowFunctionContent | ( FunctionParamsDeclaration ) ArrowFunctionContent
@@ -1225,7 +1224,7 @@ const not_end_symbols = {
 		],
 		[
 			END_SYMBOLS["..."],
-			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		]
 	],
@@ -1233,22 +1232,10 @@ const not_end_symbols = {
 	ObjectPatternOptionalRename: [
 		[
 			END_SYMBOLS[":"],
-			{ type: NOT_END_SYMBOL, value: "ObjectPatternOptionalRenameValue" },
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
 		],
 		[
 			END_SYMBOLS.NONE,
-		],
-	],
-	// 解构重命名值，可以为一个标识符或者是另一个解构
-	ObjectPatternOptionalRenameValue: [
-		[
-			END_SYMBOLS[TOKEN_TYPES.IDENTIFY]
-		],
-		[
-			{ type: NOT_END_SYMBOL, value: "ObjectPattern" },
-		],
-		[
-			{ type: NOT_END_SYMBOL, value: "ArrayPattern" },
 		],
 	],
 	ObjectPatternOptionalDefaultValue: [
@@ -1296,7 +1283,7 @@ const not_end_symbols = {
 		],
 		[
 			END_SYMBOLS["..."],
-			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 		[
@@ -1327,27 +1314,16 @@ const not_end_symbols = {
 	],
 	FunctionParam: [
 		[
-			{ type: NOT_END_SYMBOL, value: "FunctionParamIdentify" },
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
 			{ type: NOT_END_SYMBOL, value: "DefaultValue" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 		[
 			END_SYMBOLS["..."],
-			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 		[END_SYMBOLS.NONE],
-	],
-	FunctionParamIdentify: [
-		[
-			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
-		],
-		[
-			{ type: NOT_END_SYMBOL, value: "ObjectPattern" },
-		],
-		[
-			{ type: NOT_END_SYMBOL, value: "ArrayPattern" },
-		],
 	],
 	// 异步关键字
 	AsyncFunction: [
@@ -1779,7 +1755,6 @@ const transformers = (() => {
 
 		VariableDeclaration,
 		VariableDeclarator,
-		Declarations,
 		VariableDeclaratorHasPrefixComma,
 		VariableInitial,
 
@@ -1788,16 +1763,13 @@ const transformers = (() => {
 		ObjectPattern,
 		ObjectPatternItem,
 		ObjectPatternOptionalRename,
-		ObjectPatternOptionalRenameValue,
 		ObjectPatternOptionalDefaultValue,
 
 		ArrayPattern,
 		ArrayPatternItem,
 
 		FunctionDeclaration,
-		FunctionParamsDeclaration,
 		FunctionParam,
-		FunctionParamIdentify,
 		AsyncFunction,
 		AsyncFunctionContent,
 
@@ -2509,7 +2481,7 @@ const transformers = (() => {
 		// 剩余参数
 		[ObjectPatternItem[1], input => ({
 			type: "RestElement",
-			name: input[1],
+			argument: input[1],
 		})],
 		[ObjectPattern[0], input => ({
 			type: "ObjectPattern",
@@ -2532,7 +2504,7 @@ const transformers = (() => {
 		// 剩余参数处理
 		[ArrayPatternItem[ArrayPatternItem.length - 2], input => ({
 			type: "RestElement",
-			name: input[1],
+			argument: input[1],
 		})],
 		// 逗号处理，空解构
 		[ArrayPatternItem[ArrayPatternItem.length - 1], () => null],
@@ -2584,7 +2556,7 @@ const transformers = (() => {
 		// 函数剩余参数
 		[FunctionParam[1], input => ({
 			type: "RestElement",
-			name: input[1],
+			argument: input[1],
 		})],
 		[AsyncFunction[0], input => ({
 			"async": true,
