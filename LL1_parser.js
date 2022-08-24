@@ -2235,8 +2235,9 @@ const transformers = (() => {
 			const createNoneTemplateString = () => ({
 				type: "TemplateElement",
 				value: {
-					type: TOKEN_TYPES.TEMPLATE_STRING,
-					value: "",
+					raw: "",
+					cooked: "",
+					tail: false,
 				},
 			});
 
@@ -2255,6 +2256,7 @@ const transformers = (() => {
 						value: {
 							raw: item.raw,
 							cooked: item.value,
+							tail: false,
 						},
 					});
 					preIsExpression = false;
@@ -2271,6 +2273,8 @@ const transformers = (() => {
 			if (expressions.length === quasis.length) {
 				quasis.push(createNoneTemplateString());
 			}
+			// 尾部 quasis 做个标记
+			quasis[quasis.length - 1].tail = true;
 
 			return {
 				type: "TemplateLiteral",

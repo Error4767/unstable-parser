@@ -475,7 +475,10 @@ function scanne(code) {
 					const preValue = tokens?.[tokens.length - 1]?.value;
 					// 超过一个字符，将$符号独立出去
 					if (preValue.length > 1) {
+						// value 和 raw 都需要截取
 						tokens[tokens.length - 1].value = preValue.slice(0, preValue.length - 1);
+						const preRaw = tokens[tokens.length - 1].raw;
+						tokens[tokens.length - 1].raw = preRaw.slice(0, preRaw.length - 1);
 						// 将$符号作为一个单符号添加
 						tokens.push(createToken("$", TOKEN_TYPES.SINGLE_SYMBOL));
 					} else {
