@@ -218,6 +218,18 @@ const DATA_TYPE_SYMBOLS = {
 			return result;
 		}
 	},
+	[TOKEN_TYPES.REGULAR_EXPRESSION_LITERAL]: {
+		type: END_SYMBOL,
+		dataType: TOKEN_TYPES.REGULAR_EXPRESSION_LITERAL,
+		match(token) {
+			const result = token.type === TOKEN_TYPES.REGULAR_EXPRESSION_LITERAL;
+			// 标准化转换
+			if (result) {
+				token.type = "Literal";
+			}
+			return result;
+		}
+	},
 }
 
 /*
@@ -245,7 +257,7 @@ ArrayItem -> Term1_ OptionalComma | ... Term1_ OptionalComma | ,
 ArrowFunctionContent -> => ArrowFunctionBody | None
 ArrowFunctionBody -> Term1_ | Block
 
-Literal -> Identify ArrowFunctionContent | string | number | boolean | null | ObjectLiteral | ArrayLiteral | TemplateLiteral
+Literal -> Identify ArrowFunctionContent | string | number | boolean | null | ObjectLiteral | ArrayLiteral | TemplateLiteral | RegularExpressionLiteral
 
 TemplateLiteral -> ` TemplateStringElements `
 TemplateStringElements -> TemplateStringElement TemplateStringElements | None
@@ -1115,6 +1127,9 @@ const not_end_symbols = {
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "TemplateLiteral" },
+		],
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.REGULAR_EXPRESSION_LITERAL],
 		],
 	],
 	Block: [

@@ -16,6 +16,7 @@ const TOKEN_TYPES = {
 	KEYWORD: Symbol("Keyword"),
 	COMMENT: Symbol("Comment"),
 	TEMPLATE_STRING: Symbol("TemplateString"),
+	REGULAR_EXPRESSION_LITERAL: Symbol("RegularExpressionLiteral"),
 }
 
 const singleSymbols = {};
@@ -38,6 +39,7 @@ const singleSymbols = {};
 	"-",
 	"*",
 	"/",
+	"%",
 	"~",
 	"!",
 	"`",
@@ -238,7 +240,7 @@ function scanne(code) {
 		currentTemplateStringRaw = "";
 	}
 
-	// 解析被相同符号包裹的字面量，string , regexp
+	// 解析被相同符号包裹的字面量，字符串和正则表达式模式主体
 	function parseWrapLiteral(startSymbol /* 开始符号，可能是 " ' / */) {
 		let char;
 		let value = "";
@@ -268,6 +270,8 @@ function scanne(code) {
 			raw += char;
 		}
 		raw = startSymbol + raw + startSymbol;
+		// 跳过结束符号
+		cursor += 1;
 		return {
 			value,
 			raw,
@@ -291,11 +295,11 @@ function scanne(code) {
 
 		// 十六进制，八进制，二进制 (匹配第二个字符)
 		char = code[cursor];
-		if(/[xXoObB]/.test(char)) {
+		if (/[xXoObB]/.test(char)) {
 			numerticLiteral += char;
 			cursor += 1;
 			// 十六进制
-			if(char === "x") {
+			if (char === "x") {
 				isHex = true;
 				noDecimal = true;
 			}
@@ -306,7 +310,7 @@ function scanne(code) {
 			char = code[cursor];
 			// 数字可以带下划线_, 只有10进制可以带一个.
 			if (char === "_" || (!hadPoint && !noDecimal && char === ".") || (isHex ? HEX_NUMERTIC_SYMBOL.test(char) : NUMERTIC_SYMBOL.test(char))) {
-				if(char === ".") {
+				if (char === ".") {
 					// 已有点
 					hadPoint = true;
 				}
@@ -317,11 +321,85 @@ function scanne(code) {
 			}
 		}
 		// 以.结尾，则不是小数，而是属性获取，不解析为数字，cursor-1
-		if(numerticLiteral[numerticLiteral.length - 1] === ".") {
+		if (numerticLiteral[numerticLiteral.length - 1] === ".") {
 			cursor -= 1;
 			numerticLiteral = numerticLiteral.slice(0, numerticLiteral.length - 1);
 		}
 		return numerticLiteral;
+	}
+
+	// 正则表达式的有效上个字符, 有一种没有意义的情况不支持,在（ if(condition) /regexp pattern/igs else /regexp pattern/igs） 这种情况下应当被解析为正则，但无意义，故暂不支持
+	const regExpValidPreSymbols = {
+		"{": true, 
+		"(": true, 
+		"[": true,
+
+		"=": true, 
+		">": true,
+		"<": true,
+
+		",": true, 
+		";": true, 
+		":": true,
+
+		"|": true,
+		"&": true,
+		"?": true,
+		"^": true,
+
+		"!": true,
+		"~": true,
+
+		"+": true,
+		"-": true,
+		"*": true,
+		"/": true, // 这里可以是除号，下面检测的是上下 token, 如果 // 紧挨着也会被正确判断为注释，因为注释检测在正则检测之前（见下面具体执行分析的代码）
+		"%": true,
+	};
+	// 检测是否是正则
+	function isRegExp() {
+		// 如果上个token是不可视为除号处理的情况，就视为正则表达式解析
+		if(regExpValidPreSymbols[tokens[tokens.length - 1].value]) {
+			return true;
+		}
+		return false;
+	}
+	function parseRegExp() {
+		const regExpPatternContent = parseWrapLiteral("/");
+		let flags = "";
+		// 正则的有效flags
+		const validFlags = {
+			"i": true,
+			"g": true,
+			"s": true,
+			"m": true,
+		};
+		// 非空格，非符号，视为flags进行解析
+		while(cursor < code.length) {
+			const char = code[cursor];
+			if(!WHITE_SPACE.test(char) && !singleSymbols[char]) {
+				if(validFlags[char]) {
+					// 一个标记只能有一个
+					validFlags[char] = false;
+	
+					flags += char;
+					cursor += 1;
+				}else {
+					throw new SyntaxError("Invalid regular expression flags");
+				}
+			}else {
+				break;
+			}
+		}
+		return {
+			type: TOKEN_TYPES.REGULAR_EXPRESSION_LITERAL,
+			value: {},
+			raw: `${regExpPatternContent.raw}${flags}`,
+			regex: {
+				pattern: regExpPatternContent.value,
+				flags,
+			}
+		}
 	}
 
 	while (cursor < code.length) {
@@ -380,6 +458,16 @@ function scanne(code) {
 			cursor += 2;
 			continue;
 		}
+		// 正则检测
+		if(char === "/") {
+			if(isRegExp()) {
+				pushParsedToken();
+				const resultToken = parseRegExp();
+				// 正则形式特殊，直接添加，具体 token 相关信息在上面的函数中已经添加了，不需要 createToken 操作
+				tokens.push(resultToken);
+				continue;
+			}
+		}
 		// 先检测是否可以匹配多个
 		const multipleStartMatched = multipleSymbols[char];
 		if (multipleStartMatched) {
@@ -406,8 +494,6 @@ function scanne(code) {
 			const string = parseWrapLiteral(char);
 			if (string) {
 				tokens.push(createToken(string, TOKEN_TYPES.STRING_LITERAL));
-				// 跳过字符串结束符号
-				cursor += 1;
 				continue;
 			} else {
 				return false;
@@ -436,7 +522,7 @@ function scanne(code) {
 			const resultToken = createToken(char, TOKEN_TYPES.SINGLE_SYMBOL);
 
 			// 如果点后紧跟数字，则是小数的另一种写法
-			if(char == "." && NUMERTIC_SYMBOL.test(code[cursor + 1])) {
+			if (char == "." && NUMERTIC_SYMBOL.test(code[cursor + 1])) {
 				// 跳过.
 				cursor += 1;
 				// 浮点数部分,从cursor开始
@@ -521,7 +607,7 @@ function scanne(code) {
 
 	// 添加末尾
 	pushParsedToken();
-
+	
 	return tokens;
 }
 
