@@ -359,7 +359,9 @@ function scanne(code) {
 	// 检测是否是正则
 	function isRegExp() {
 		// 如果上个token是不可视为除号处理的情况，就视为正则表达式解析
-		if(regExpValidPreSymbols[tokens[tokens.length - 1].value]) {
+		const preToken = tokens[tokens.length - 1];
+		// 如果代码开头就是 / ， 那也视为正则，若开头是 / 则上个 token 就不存在
+		if(!preToken || regExpValidPreSymbols[tokens[tokens.length - 1].value]) {
 			return true;
 		}
 		return false;
