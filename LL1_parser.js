@@ -2909,7 +2909,7 @@ const transformers = (() => {
 			// 如果是函数，类型就是函数声明
 			input[0].type === "FunctionExpression" && (input[0].type = "FunctionDeclaration");
 			return {
-				type: "ExportDeclaration",
+				type: "ExportNamedDeclaration",
 				declaration: input[0],
 			};
 		}],
