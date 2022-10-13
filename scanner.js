@@ -160,9 +160,9 @@ Object.entries({
 
 // 已匹配的集合，和输入字符串
 function matchMultiple(matchedSet, input) {
-	const fourSymbols = input.substr(0, 4);
-	const threeSymbols = fourSymbols.substr(0, 3);
-	const twoSymbol = threeSymbols.substr(0, 2);
+	const fourSymbols = input.substring(0, 4);
+	const threeSymbols = fourSymbols.substring(0, 3);
+	const twoSymbol = threeSymbols.substring(0, 2);
 
 	let matched;
 
@@ -432,7 +432,7 @@ function scanne(code) {
 		}
 
 		// 单行注释检测
-		if (code.substr(cursor, 2) == "//") {
+		if (code.substring(cursor, cursor + 2) == "//") {
 			pushParsedToken();
 			cursor += 2;
 
@@ -447,11 +447,11 @@ function scanne(code) {
 			continue;
 		}
 		// 多行注释检测
-		if (code.substr(cursor, 2) == "/*") {
+		if (code.substring(cursor, cursor + 2) == "/*") {
 			pushParsedToken();
 			cursor += 2;
 			let comment = "";
-			while (code.substr(cursor, 2) !== "*/") {
+			while (code.substring(cursor, cursor + 2) !== "*/") {
 				comment += code[cursor];
 				cursor += 1;
 			}
@@ -473,7 +473,7 @@ function scanne(code) {
 		// 先检测是否可以匹配多个
 		const multipleStartMatched = multipleSymbols[char];
 		if (multipleStartMatched) {
-			const multipleMatched = matchMultiple(multipleStartMatched, code.substr(cursor, 4));
+			const multipleMatched = matchMultiple(multipleStartMatched, code.substring(cursor, cursor + 4));
 			if (multipleMatched) {
 				// 运算符匹配成功，则首先将之前的字符(如果有的话)添加为token
 				pushParsedToken();
