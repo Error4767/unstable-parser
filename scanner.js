@@ -199,7 +199,13 @@ function scanne(code) {
 	const parenStack = [];
 	const preStartParens = [];
 
+	const squareBracketsStack = [];
+	const squareBracketsStackIndexesInTokens = [];
+	const preStartSquareBracketsStack = [];
+	const preStartSquareBracketsStackIndexesInTokens = [];
+
 	const blockStack = [];
+	const preStartBlockStack = [];
 	let isTemplateString = false;
 	let currentTemplateStringDepth = 0;
 	const templateSymbolStack = [];
@@ -330,16 +336,16 @@ function scanne(code) {
 
 	// 正则表达式的有效上个字符, 有一种没有意义的情况不支持,在（ if(condition) /regexp pattern/igs else /regexp pattern/igs） 这种情况下应当被解析为正则，但无意义，故暂不支持
 	const regExpValidPreSymbols = {
-		"{": true, 
-		"(": true, 
+		"{": true,
+		"(": true,
 		"[": true,
 
-		"=": true, 
+		"=": true,
 		">": true,
 		"<": true,
 
-		",": true, 
-		";": true, 
+		",": true,
+		";": true,
 		":": true,
 
 		"|": true,
@@ -361,7 +367,7 @@ function scanne(code) {
 		// 如果上个token是不可视为除号处理的情况，就视为正则表达式解析
 		const preToken = tokens[tokens.length - 1];
 		// 如果代码开头就是 / ， 那也视为正则，若开头是 / 则上个 token 就不存在
-		if(!preToken || regExpValidPreSymbols[tokens[tokens.length - 1].value]) {
+		if (!preToken || regExpValidPreSymbols[tokens[tokens.length - 1].value]) {
 			return true;
 		}
 		return false;
@@ -377,19 +383,19 @@ function scanne(code) {
 			"m": true,
 		};
 		// 非空格，非符号，视为flags进行解析
-		while(cursor < code.length) {
+		while (cursor < code.length) {
 			const char = code[cursor];
-			if(!WHITE_SPACE.test(char) && !singleSymbols[char]) {
-				if(validFlags[char]) {
+			if (!WHITE_SPACE.test(char) && !singleSymbols[char]) {
+				if (validFlags[char]) {
 					// 一个标记只能有一个
 					validFlags[char] = false;
-	
+
 					flags += char;
 					cursor += 1;
-				}else {
+				} else {
 					throw new SyntaxError("Invalid regular expression flags");
 				}
-			}else {
+			} else {
 				break;
 			}
 		}
@@ -461,8 +467,8 @@ function scanne(code) {
 			continue;
 		}
 		// 正则检测
-		if(char === "/") {
-			if(isRegExp()) {
+		if (char === "/") {
+			if (isRegExp()) {
 				pushParsedToken();
 				const resultToken = parseRegExp();
 				// 正则形式特殊，直接添加，具体 token 相关信息在上面的函数中已经添加了，不需要 createToken 操作
@@ -549,13 +555,10 @@ function scanne(code) {
 				const startBracket = parenStack.pop();
 				// 如果有消除标记
 				if (startBracket?.tag) {
-					delete startBracket.tag
+					delete startBracket.tag;
 				}
 				preStartParens.push(startBracket);
-			}
-
-			// 花括号和模板字符串
-			if (char === "{") {
+			} else if (char === "{") {// 花括号和模板字符串
 
 				// 是模板字符串内，就做动作
 				if (isTemplateString && code[cursor - 1] === "$" && code[cursor - 2] !== "\\" /* 转义字符检测 */) {
@@ -584,8 +587,30 @@ function scanne(code) {
 					currentTemplateStringDepth -= 1;
 					isTemplateString = true;
 				}
-			}
-			if (char === "`") {
+				preStartBlockStack.push(startSymbol);
+			} else if (char === "[") {
+				// 保存符号，以及在 tokens 中的索引，因为后面没有动作了直接添加进去，所以直接是 tokens.length
+				squareBracketsStack.push(resultToken);
+				squareBracketsStackIndexesInTokens.push(tokens.length);
+			} else if (char === "]") {
+				// 存储开始括号索引以及其本身 
+				preStartSquareBracketsStackIndexesInTokens.push(squareBracketsStackIndexesInTokens.pop());
+				preStartSquareBracketsStack.push(squareBracketsStack.pop());
+			} else if (char === "=") { // 对于解构表达式的处理
+				// 对于上一个字符是 } 的情况，只有对象解构
+				if (tokens[tokens.length - 1]?.value === "}") {
+					preStartBlockStack[preStartBlockStack.length - 1].specialType = "ObjectDestructure";
+				}else if (tokens[tokens.length - 1]?.value === "]") {
+					// 获取上一个开始括号在 tokens 中的 index
+					const preStartSquareBracketIndex = preStartSquareBracketsStackIndexesInTokens[preStartSquareBracketsStackIndexesInTokens.length - 1];
+					// 取得当前关闭括号对应的开始括号前一个字符(当前关闭括号对应的开始括号在 tokens 中的 index 减 1)
+					const preTokenInPreStartSquareBracket = tokens[preStartSquareBracketIndex - 1];
+					// 检测前一个字符确定是否是解构语法
+					if (!preTokenInPreStartSquareBracket || ["[", "(", "{", "}", ",", ";", ":"].includes(preTokenInPreStartSquareBracket.value)) {
+						tokens[preStartSquareBracketIndex].specialType = "ArrayDestructure";
+					}
+				}
+			} else if (char === "`") {
 				resultToken.templateStringDepth = currentTemplateStringDepth;
 				// 与上一个深度相同，则为结束模板字符串
 				if (templateSymbolStack?.[templateSymbolStack.length - 1]?.templateStringDepth === resultToken.templateStringDepth) {
@@ -609,7 +634,7 @@ function scanne(code) {
 
 	// 添加末尾
 	pushParsedToken();
-	
+
 	return tokens;
 }
 

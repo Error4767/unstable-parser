@@ -3234,16 +3234,16 @@ function parse(input) {
 					if (tokens?.[tokens.length - 2]?.value !== ")") {
 						tokens[tokens.length - 2].production = not_end_symbols.FunctionParamsDeclaration[0];
 					}
+					delete token.specialType;
 				}
 				// for in, for of 处理
 				if (specialType === "ForInContent") {
 					token.production = not_end_symbols.ForInContent[0];
-				}
-				if (specialType === "ForOfContent") {
+					delete token.specialType;
+				}else if (specialType === "ForOfContent") {
 					token.production = not_end_symbols.ForOfContent[0];
+					delete token.specialType;
 				}
-				// 删除掉该属性，只需要处理一次
-				delete token.specialType;
 			}
 
 			const name = sym.value;
@@ -3253,13 +3253,32 @@ function parse(input) {
 
 			// console.log(p, name, token, production,index, sym, analyzeTable?.[name]);
 
+			// 需要产生式的 specialType 相关处理
+			if(specialType) {
+				// 如果是解构且因为是表达式所以当成了 ArrayLiteral 解析，那么就让其作为 ArrayPattern 解析
+				if(specialType === "ArrayDestructure" && p === not_end_symbols.ArrayLiteral[0]) {
+					token.production = not_end_symbols.ArrayPattern[0];
+					delete token.specialType;
+				}
+				// 两步成功解析 数组解构表达式
+				// 如果是 ObjectDestructure 类型，且被解析为 Block, 那么让其当成 Expression 解析，以保证优先级的等相关东西
+				if(specialType === "ObjectDestructure" && p === not_end_symbols.Block[0]) {
+					token.production = not_end_symbols.Expression[0];
+				}
+				// 因为上面当作 Expression 解析，这样不论是单独写还是在表达式中的，只要为 ObjectDestructure，在解析 Expression 时必然被当作 ObjectLiternal, 将这部分符合条件的使用 ObjectPattern 解析即可
+				if(specialType === "ObjectDestructure" && p === not_end_symbols.ObjectLiteral[0]) {
+					token.production = not_end_symbols.ObjectPattern[0];
+					delete token.specialType2;
+				}
+			}
+
 			// 某些情况特殊处理的产生式
 			if (token.production) {
 				p = token.production;
 				// 取完就删除，否则会重新进入该部分无限递归
 				delete token.production;
 			}
-
+			
 			// 如果是 KEYWORD 则可能是 Identify, 即关键字作为标识符,使用标识符查找产生式
 			if (!p && token.type === TOKEN_TYPES.KEYWORD && name !== "Statements" /* 语句中不可存在关键字(这样也对于switch中case不做处理) */) {
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
@@ -3334,9 +3353,12 @@ function transform(parsed) {
 // console.log(hasNoneProductions);
 
 /*
-暂未支持的语法
-语句开头的变量字面量
-语句开头的没有变量类型的解构
+已知暂未支持的语法
+class
+for await
+label block
+label for
+missing ObjectExpression
 */
 
 export {
