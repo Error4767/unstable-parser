@@ -546,9 +546,11 @@ function scanne(code) {
 
 			// 括号和for循环标记
 			if (char === "(") {
-				// 打标记表示是for循环
+				// 打标记表示是for循环, 但不确定是一般 for | for in | for of ，等待后面判定使用
 				if (tokens?.[tokens.length - 1]?.value === "for") {
 					resultToken.tag = "for";
+				}else if(tokens?.[tokens.length - 2]?.value === "for" && tokens?.[tokens.length - 1]?.value === "await") { // 通过 for await 直接确定是 for await of，直接在 await 上标记特殊类型
+					tokens[tokens.length - 1].specialType = "ForOfContent";
 				}
 				parenStack.push(resultToken);
 			} else if (char === ")") {

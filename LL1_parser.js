@@ -237,6 +237,7 @@ OptionalComma -> , | None
 OptionalDelimter -> ; | None
 OptionalIdentify -> Identify | None
 OptionalMutiplicationSign -> * | None
+OptionalAwait -> await | None
 
 ObjectLiteral -> { ObjectContent }
 ObjectContent -> ObjectAttribute ObjectContent | None
@@ -316,7 +317,7 @@ ForContent -> ( OptionalVariableDeclarationOrExpression ; OptionalExpression ; O
 
 OptionalVariableType -> VariableType | None
 ForInContent -> ( OptionalVariableType VariableIdentifier in Expression ) Block
-ForOfContent -> ( OptionalVariableType VariableIdentifier of Expression ) Block
+ForOfContent -> OptionalAwait ( OptionalVariableType VariableIdentifier of Expression ) Block
 
 OptionalCatchClause -> catch OptionalCatchParam Block | None
 OptionalCatchParam -> ( VariableIdentifier ) | None
@@ -540,6 +541,15 @@ const not_end_symbols = {
 	OptionalMutiplicationSign: [
 		[
 			END_SYMBOLS["*"],
+		],
+		[
+			END_SYMBOLS.NONE,
+		]
+	],
+	// 可选 await
+	OptionalAwait: [
+		[
+			END_SYMBOLS.AWAIT,
 		],
 		[
 			END_SYMBOLS.NONE,
@@ -1475,6 +1485,7 @@ const not_end_symbols = {
 	// for of
 	ForOfContent: [
 		[
+			{ type: NOT_END_SYMBOL, value: "OptionalAwait" },
 			END_SYMBOLS.START_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "OptionalVariableType" },
 			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
@@ -2660,36 +2671,63 @@ const transformers = (() => {
 			}
 			return result;
 		}],
-		...(() => {
-			const createSpecialForHandler = type => input => {
-				// 长度为7，具有变量类型
-				if (input.length === 7) {
-					return {
-						type,
-						left: {
-							type: "VariableDeclaration",
-							kind: input[1].value,
-							declarations: [
-								{ type: "VariableDeclarator", id: input[2], init: null }
-							],
-						},
-						right: input[4],
-						body: input[6],
-					}
-				} else {
-					return {
-						type,
-						left: input[1],
-						right: input[3],
-						body: input[5],
-					}
+		[ForInContent[0], input => {
+			// 长度为7，具有变量类型
+			if (input.length === 7) {
+				return {
+					type: "ForInStatement",
+					left: {
+						type: "VariableDeclaration",
+						kind: input[1].value,
+						declarations: [
+							{ type: "VariableDeclarator", id: input[2], init: null }
+						],
+					},
+					right: input[4],
+					body: input[6],
+				}
+			} else {
+				return {
+					type: "ForInStatement",
+					left: input[1],
+					right: input[3],
+					body: input[5],
 				}
 			}
-			return [
-				[ForInContent[0], createSpecialForHandler("ForInStatement")],
-				[ForOfContent[0], createSpecialForHandler("ForOfStatement")],
-			];
-		})(),
+		}],
+		[ForOfContent[0], input => {
+			// conten 最终处理为主体部分，仅从括号开始到循环体块结束的部分，不包含 await 关键字
+			let content = input;
+			let isAwait = false;
+			if(content[0]?.value === "await") {
+				content = content.slice(1);
+				isAwait = true;
+			}
+			// 长度为7，具有变量类型
+			if (content.length === 7) {
+				return {
+					type: "ForOfStatement",
+					"await": isAwait,
+					left: {
+						type: "VariableDeclaration",
+						kind: content[1].value,
+						declarations: [
+							{ type: "VariableDeclarator", id: content[2], init: null }
+						],
+					},
+					right: content[4],
+					body: content[6],
+				}
+			} else {
+				return {
+					type: "ForOfStatement",
+					"await": isAwait,
+					left: content[1],
+					right: content[3],
+					body: content[5],
+				}
+			}
+		}],
 		[ModuleSpecifers[0], input => (input.slice(1, input.length - 1))],
 		// 别名直接返回标识符
 		[ModuleOptionalAlias[0], input => (input[1])],
