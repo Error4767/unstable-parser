@@ -3390,15 +3390,6 @@ function transform(parsed) {
 
 // console.log(hasNoneProductions);
 
-/*
-已知暂未支持的语法
-class
-for await
-label block
-label for
-missing ObjectExpression
-*/
-
 export {
 	parse,
 	transform,
