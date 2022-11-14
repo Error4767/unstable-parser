@@ -3,6 +3,9 @@ import { TOKEN_TYPES } from "./scanner.js";
 const END_SYMBOL = Symbol("end");
 const NOT_END_SYMBOL = Symbol("no end");
 
+// new.target 标记
+const NEW_POINT_TARGET_IDENTIFY = Symbol("new.target");
+
 // 终结符
 const END_SYMBOLS = {
 	LITERAL: { type: END_SYMBOL, value: "literal" },
@@ -1888,13 +1891,43 @@ const transformers = (() => {
 			arguments: right && (right.type === "SequenceExpression" ? [...right.expressions] : [right]),
 			optional: true,
 		}),
-		".": ({ left, right, operator: { computed = false } }) => ({
-			type: "MemberExpression",
-			object: left,
-			property: right,
-			computed,
-			optional: false,
-		}),
+		".": ({ left, right, operator: { computed = false } }) => {
+			// 如果左侧直接就是 value 为 import 或者 new 的 Identify, 那么就是 MetaProperty（Identify 有.value 属性，expression 无）
+			// import.meta 处理
+			if(left.value === "import") {
+				if(right.value !== "meta") {
+					console.log("The only valid meta property for import is 'import.meta'");
+					throw new Error("parse failed");
+				}
+				return {
+					type: "MetaProperty",
+					meta: left,
+					property: right,
+				}
+			}
+			// new.target
+			if(left.value === NEW_POINT_TARGET_IDENTIFY) {
+				if(right.value !== "target") {
+					console.log("The only valid meta property for import is 'import.meta'");
+					throw new Error("parse failed");
+				}
+				return {
+					type: "MetaProperty",
+					meta: {
+						type: "Identifier",
+						name: "new",
+					},
+					property: right,
+				}
+			}
+			return {
+				type: "MemberExpression",
+				object: left,
+				property: right,
+				computed,
+				optional: false,
+			}
+		},
 		"?.": ({ left, right, operator: { computed = false } }) => ({
 			type: "MemberExpression",
 			object: left,
@@ -2101,12 +2134,12 @@ const transformers = (() => {
 						argument: result,
 					};
 				} else {
-					result = normalizeComputeExpression({
+					result = {
 						type: ["++", "--"].includes(operator.value) ? "UpdateExpression" : "UnaryExpression",
 						prefix: true,
 						operator,
 						argument: result,
-					})
+					}
 				}
 			}
 
@@ -3321,9 +3354,18 @@ function parse(input) {
 			if (!p && token.type === TOKEN_TYPES.KEYWORD && name !== "Statements" /* 语句中不可存在关键字(这样也对于switch中case不做处理) */) {
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
-			// 动态加载表达式，使用标识符获取查找产生式，因为语法上和表达式相同
-			if (token.value === "import" && tokens[tokens.length - 2].value === "(") {
-				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
+			// new.target 标记
+			if(token.value === "new" && tokens[tokens.length - 2]?.value === ".") {
+				// 设置值为该标记，这样该 new 在 Term17 就会被忽略(否则该 new 会被 Term17 使用，产生冲突问题), 待进入 Expr 之后特殊处理
+				token.value = NEW_POINT_TARGET_IDENTIFY;
+			}
+			// 动态加载表达式 import() 和 模块元数据 import.meta 用法特殊处理
+			if (token.value === "import") {
+				const nextSymbol = tokens[tokens.length - 2]?.value;
+				// 下一个字符匹配，作为 Identify 匹配
+				if(nextSymbol === "(" || nextSymbol === ".") {
+					p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
+				}
 			}
 
 			// 无法匹配
