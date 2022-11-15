@@ -1,6 +1,6 @@
 {
   "name": "unstable-parser",
-  "version": "0.0.40",
+  "version": "0.0.41",
   "description": "",
   "main": "parser.js",
   "type": "module",

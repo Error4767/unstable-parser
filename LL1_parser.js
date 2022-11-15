@@ -3277,7 +3277,7 @@ function parse(input) {
 			}
 
 			// 如果有match, 调用其 match 方法匹配
-			if (sym.match && sym.match(token)) {
+			if (sym?.match?.(token)) {
 				container.children.push(token);
 				return true;
 			}
@@ -3360,12 +3360,9 @@ function parse(input) {
 				token.value = NEW_POINT_TARGET_IDENTIFY;
 			}
 			// 动态加载表达式 import() 和 模块元数据 import.meta 用法特殊处理
-			if (token.value === "import") {
-				const nextSymbol = tokens[tokens.length - 2]?.value;
-				// 下一个字符匹配，作为 Identify 匹配
-				if(nextSymbol === "(" || nextSymbol === ".") {
-					p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
-				}
+			if (token.value === "import" && ["(", "."].includes(tokens[tokens.length - 2]?.value)) {
+				// 将该关键字作为 Identify 匹配
+				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
 
 			// 无法匹配
