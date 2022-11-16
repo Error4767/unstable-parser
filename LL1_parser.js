@@ -6,6 +6,41 @@ const NOT_END_SYMBOL = Symbol("no end");
 // new.target 标记
 const NEW_POINT_TARGET_IDENTIFY = Symbol("new.target");
 
+// 工具，生成可解析语法秒数文本
+function generateSyntaxDescriptionTexts() {
+	// 创建可用 symbol type 查找字符串的 map, 目前 key 直接为 TOKEN_TYPES 的 key
+	const typeTextsMap = new Map();
+	Object.entries(TOKEN_TYPES).forEach(([key, identify])=> typeTextsMap.set(identify, key));
+	return Object.entries(not_end_symbols).map(([name, productions])=> {
+		return `${name} => ${productions.map(production=> {
+			return production.map(token=> {
+				if(token.type === END_SYMBOL) {
+					if(token.dataType) {
+						return typeTextsMap.get(token.dataType);
+					}else {
+						return token.value;
+					}
+				}
+				if(token.type === NOT_END_SYMBOL) {
+					return token.value;
+				}
+			}).join(" ");
+		}).join("\r\n  | ")}`
+	}).join("\r\n");
+}
+
+/* 
+不符合 LL1 需要手写特殊逻辑解析的语法
+ArrowFunciton
+ForInStatement
+ForOfStatement
+ArrayDesturcture in Expression
+ObjectDestructure in Expression
+Dynamic Import
+import.meta
+new.target
+*/
+
 // 终结符
 const END_SYMBOLS = {
 	LITERAL: { type: END_SYMBOL, value: "literal" },
@@ -3361,4 +3396,5 @@ export {
 	parse,
 	transform,
 	getLL1Infos,
+	generateSyntaxDescriptionTexts,
 }
