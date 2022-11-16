@@ -145,6 +145,8 @@ const keyWords = {};
 	"yield",
 	"debugger",
 	"with",
+	"get",
+	"set",
 ].forEach(key => {
 	keyWords[key] = TOKEN_TYPES.KEYWORD;
 });

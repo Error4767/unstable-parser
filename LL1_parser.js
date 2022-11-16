@@ -134,6 +134,9 @@ const END_SYMBOLS = {
 	DEBUGGER: { type: END_SYMBOL, value: "debugger" },
 	// with
 	WITH: { type: END_SYMBOL, value: "with" },
+	// GET SET
+	GET: { type: END_SYMBOL, value: "get" },
+	SET: { type: END_SYMBOL, value: "set" },
 
 	[TOKEN_TYPES.TEMPLATE_STRING]: { // 模板字符串中的字符串
 		type: END_SYMBOL,
@@ -234,211 +237,6 @@ const DATA_TYPE_SYMBOLS = {
 		}
 	},
 }
-
-/*
-OptionalComma -> , | None
-OptionalDelimter -> ; | None
-OptionalIdentify -> Identify | None
-OptionalMutiplicationSign -> * | None
-OptionalAwait -> await | None
-
-ObjectLiteral -> { ObjectContent }
-ObjectContent -> ObjectAttribute ObjectContent | None
-ObjectAttribute -> 
-	|Identify ObjectAttributeRight OptionalComma 
-	| StringLiteral ObjectAttributeRight OptionalComma 
-	| [ Expression ] ObjectAttributeRight OptionalComma
-	| ... Term1_ OptionalComma
-	| number ObjectAttributeRight OptionalComma 
-	| booleam ObjectAttributeRight OptionalComma 
-	| null ObjectAttributeRight OptionalComma 
-ObjectAttributeRight -> : Term1_ | ( FunctionParamsDeclaration ) Block | None
-
-ArrayLiteral -> [ ArrayContent ]
-ArrayContent -> ArrayItem ArrayContent | None
-ArrayItem -> Term1_ OptionalComma | ... Term1_ OptionalComma | ,
-
-ArrowFunctionContent -> => ArrowFunctionBody | None
-ArrowFunctionBody -> Term1_ | Block
-
-Literal -> Identify ArrowFunctionContent | string | number | boolean | null | ObjectLiteral | ArrayLiteral | TemplateLiteral | RegularExpressionLiteral
-
-TemplateLiteral -> ` TemplateStringElements `
-TemplateStringElements -> TemplateStringElement TemplateStringElements | None
-TemplateStringElement -> template_string | $ { Expression }
-
-VariableType -> var | let | const
-VariableDeclarator -> VariableIdentifier VariableInitial;
-VariableInitial -> = Term1_ | None
-VariableIdentifier -> Identify | ObjectPattern | ArrayPattern
-VariableDeclaration -> VariableType Declarations;
-Declarations -> FirstDeclaration ExtraDeclarations | None
-FirstDeclaration -> VariableDeclarator | None
-ExtraDeclarations -> VariableDeclaratorHasPrefixComma ExtraDeclarations | None
-VariableDeclaratorHasPrefixComma -> , VariableIdentifier
-
-DefaultValue -> = Term1_ | None
-
-ObjectPattern -> { ObjectPatternItems }
-ObjectPatternItems -> ObjectPatternItem ObjectPatternItems | None
-ObjectPatternItem -> Identify ObjectPatternOptionalRename ObjectPatternOptionalDefaultValue OptionalComma | ... VariableIdentifier OptionalComma
-ObjectPatternOptionalRename -> : VariableIdentifier | None
-ObjectPatternOptionalDefaultValue -> = Term1_ | None
-
-ArrayPattern -> [ ArrayPatternItems ]
-ArrayPatternItems -> ArrayPatternItem ArrayPatternItems | None
-ArrayPatternItem -> 
-	| Identify DefaultValue OptionalComma 
-	| ArrayPattern DefaultValue OptionalComma 
-	| ObjectPattern DefaultValue OptionalComma 
-	| ... VariableIdentifier OptionalComma
-	| ,
-
-FunctionDeclaration -> function OptionalIdentify ( FunctionParamsDeclaration ) Block
-FunctionParamsDeclaration -> FunctionParam FunctionParamsDeclaration | None
-FunctionParam -> VariableIdentifier DefaultValue OptionalComma | ... Identify OptionalComma
-VariableIdentifier -> Identify | ObjectPattern | ArrayPattern
-
-AsyncFunction -> async AsyncFunctionContent
-AsyncFunctionContent -> FunctionDeclaration | Identify ArrowFunctionContent | ( FunctionParamsDeclaration ) ArrowFunctionContent
-
-If -> if ( Expression ) Statement Else
-Else -> else ElseContent | None
-ElseContent -> Statement | If
-
-While -> while ( Expression ) Block;
-
-Return -> return OptionalExpression
-Throw -> throw Expression
-Debugger -> debugger
-With -> with ( Expression ) Block
-
-Block -> { Statements }
-
-OptionalVariableDeclarationOrExpression -> VariableDeclaration | Expression | None
-ForContent -> ( OptionalVariableDeclarationOrExpression ; OptionalExpression ; OptionalExpression ) Block
-
-OptionalVariableType -> VariableType | None
-ForInContent -> ( OptionalVariableType VariableIdentifier in Expression ) Block
-ForOfContent -> OptionalAwait ( OptionalVariableType VariableIdentifier of Expression ) Block
-
-OptionalCatchClause -> catch OptionalCatchParam Block | None
-OptionalCatchParam -> ( VariableIdentifier ) | None
-OptionalFinallyClause -> finally Block
-
-Switch -> switch ( Expression ) { SwitchCases }
-SwitchCases -> SwitchCase SwitchCases | None
-SwitchCase -> case Expression : Statements | default : Statements
-
-Program -> Statements
-Statements -> Statement Statements | None
-Statement ->  
-	| Expression OptionalDelimter
-	| VariableDeclaration OptionalDelimter
-	| If OptionalDelimter
-	| import ImportIdentify string OptionalDelimter 
-	| export ExportContent OptionalDelimter 
-	| While OptionalDelimter
-	| Return OptionalDelimter
-	| break OptionalDelimter
-	| continue OptionalDelimter
-	| for ForContent OptionalDelimter
-	| try Block OptionalCatchClause OptionalFinallyClause OptionalDelimter
-	| Block OptionalDelimter
-	| Switch OptionalDelimter
-	| Throw OptionalDelimter
-	| OptionalDelimter
-
-ImportIdentify -> ImportSpecifers from | None
-ImportSpecifers -> ImportDefault Imports | Imports | * as Identify
-ImportDefault -> Identify
-Imports -> ModuleSpecifers | None
-
-ExportContent -> 
-	| default Expression 
-	| ModuleSpecifers ExportRedirect 
-	| VariableDeclaration 
-	| FunctionDeclaration 
-	| * OptionalExportAllExported from StringLiteral
-ExportRedirect -> from StringLiteral | None
-OptionalExportAllExported -> as Identify
-
-ModuleSpecifers -> { ModuleSpecifersItems }
-ModuleSpecifersItems -> ModuleSpecifersItem ModuleSpecifersItems | None
-ModuleSpecifersItem -> Identify ModuleOptionalAlias OptionalComma
-ModuleOptionalAlias -> as Identify | None
-*/
-
-/* Expression 指代任意有效表达式， Term1_ 就指代单表达式（不含逗号的），Expr指单个字面量或是 ( Expression ) 的形式
-Expression -> Term1_ Term1
-OptionalExpression -> Expression | None
-Expr -> Literal | FunctionDeclaration | ( OptionalExpression ) ArrowFunctionContent
-Term1 -> , Term1_ Term1 | None
-Term1_ -> Term2_ Term2 | yield OptionalMutiplicationSign OptionalTerm1_
-OptionalTerm1_ -> Term1_ | None
-Term2 -> = Term2_ Term2 
-	| += Term2_ Term2 
-	| -= Term2_ Term2 
-	| **= Term2_ Term2
-	| *= Term2_ Term2 
-	| /= Term2_ Term2 
-	| %= Term2_ Term2 
-	| <<= Term2_ Term2
-	| >>= Term2_ Term2
-	| >>>= Term2_ Term2
-	| &= Term2_ Term2
-	| ^= Term2_ Term2
-	| |= Term2_ Term2
-	| &&= Term2_ Term2
-	| ||= Term2_ Term2
-	| ??= Term2_ Term2
-	| None
-Term2_ -> Term3_ Term3
-Term3 -> ? Term3_ Term3 : Term3_ Term3 | None
-Term3_ -> Term4_ Term4
-Term4 -> || Term4_ Term4 | ?? Term4_ Term4 | None
-Term4_ -> Term5_ Term5
-Term5 -> && Term5_ Term5 | None
-Term5_ -> Term6_ Term6
-Term6 -> | Term6_ Term6 | None
-Term6_ -> Term7_ Term7
-Term7 -> ^ Term7_ Term7 | None
-Term7_ -> Term8_ Term8
-Term8 -> & Term8_ Term8 | None
-Term8_ -> Term9_ Term9
-Term9 -> == Term9_ Term9 | != Term9_ Term9 | === Term9_ Term9 | !== Term9_ Term9 | None
-Term9_ -> Term10_ Term10
-Term10 -> > Term10_ Term10 | < Term10_ Term10 | >= Term10_ Term 11 | <= Term10_ Term10 | in Term10_ Term10 | instanceof Term10_ Term10 | None
-Term10_ -> Term11_ Term11
-Term11 -> >> Term11_ Term11 | << Term11_ Term11 | None
-Term11_ -> Term12_ Term12
-Term12 -> + Term12_ Term12 | - Term12_ Term12 | None
-Term12_ -> Term13_ Term13
-Term13 -> * Term13_ Term13 | / Term13_ Term13 | % Term13_ Term13 | None
-Term13_ -> Term14_ Term14
-Term14 -> ** Term14_ Term14 | None
-Term14_ -> Term15 Term15_
-Term15 -> typeof Term15 
-	| delete Term15 
-	| void Term15 
-	| await Term15 
-	| ! Term15_
-	| ~ Term15_
-	| + Term15_
-	| - Term15_
-	| ++ Term15_
-	| -- Term15_
-	| None
-Term15_ -> Term16_ Term16
-Term16 -> ++ | -- | None
-Term16_ -> TermWithOptionalTagTemplate_ TermWithOptionalTagTemplate
-TermWithOptionalTagTemplate -> TemplateLiteral TermWithOptionalTagTemplate | None
-TermWithOptionalTagTemplate_ -> Term17 Term17_
-Term17 -> new Term17 | None
-Term17_ -> Expr Term18
-Term18 -> . Identify Term18 | [ Expression ] Term18 | ?. OptionalChainingAttributeName Term18 | ( OptionalExpression ) Term18 | None
-OptionalChainingAttributeName -> Identify | [ Expression ] | ( OptionalExpression )
-*/
 
 // 对象的key为非终结符，值为可用的产生式数组
 const not_end_symbols = {
@@ -1020,6 +818,68 @@ const not_end_symbols = {
 			END_SYMBOLS.NONE,
 		],
 	],
+	// setter getter 相关产生式生成
+	...(() => {
+		const validGetterOrSetterKeys = [
+			[
+				END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			],
+			[
+				END_SYMBOLS["["],
+				{ type: NOT_END_SYMBOL, value: "Expression" },
+				END_SYMBOLS["]"],
+			],
+			[
+				DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
+			],
+			[
+				DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
+			],
+			[
+				END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			],
+			[
+				DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
+			]
+		];
+
+		return {
+			// 方法类型 get 或 set
+			MethodGetterOrSetter: [
+				[
+					END_SYMBOLS.GET,
+					{ type: NOT_END_SYMBOL, value: "MethodGetterContent" },
+				],
+				[
+					END_SYMBOLS.SET,
+					{ type: NOT_END_SYMBOL, value: "MethodSetterContent" },
+				],
+			],
+			MethodGetterContent: [
+				// 合并生成产生式
+				...validGetterOrSetterKeys.map(production => {
+					return [
+						...production,
+						END_SYMBOLS.START_BRACKET,
+						END_SYMBOLS.END_BRACKET,
+						{ type: NOT_END_SYMBOL, value: "Block" },
+					];
+				}),
+			],
+			MethodSetterContent: [
+				// 合并生成产生式
+				...validGetterOrSetterKeys.map(production => {
+					return [
+						...production,
+						END_SYMBOLS.START_BRACKET,
+						{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
+						END_SYMBOLS.END_BRACKET,
+						{ type: NOT_END_SYMBOL, value: "Block" },
+					];
+				}),
+			],
+		}
+	})(),
 	ObjectAttribute: [
 		[
 			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
@@ -1062,6 +922,11 @@ const not_end_symbols = {
 		[
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NULL_LITERAL],
 			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		// 属性
+		[
+			{ type: NOT_END_SYMBOL, value: "MethodGetterOrSetter" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 	],
@@ -1843,6 +1708,9 @@ const transformers = (() => {
 		ArrayLiteral,
 		ObjectAttribute,
 		ObjectAttributeRight,
+		MethodGetterOrSetter,
+		MethodGetterContent,
+		MethodSetterContent,
 		ArrayItem,
 		ArrowFunctionContent,
 
@@ -1894,8 +1762,8 @@ const transformers = (() => {
 		".": ({ left, right, operator: { computed = false } }) => {
 			// 如果左侧直接就是 value 为 import 或者 new 的 Identify, 那么就是 MetaProperty（Identify 有.value 属性，expression 无）
 			// import.meta 处理
-			if(left.value === "import") {
-				if(right.value !== "meta") {
+			if (left.value === "import") {
+				if (right.value !== "meta") {
 					console.log("The only valid meta property for import is 'import.meta'");
 					throw new Error("parse failed");
 				}
@@ -1906,8 +1774,8 @@ const transformers = (() => {
 				}
 			}
 			// new.target
-			if(left.value === NEW_POINT_TARGET_IDENTIFY) {
-				if(right.value !== "target") {
+			if (left.value === NEW_POINT_TARGET_IDENTIFY) {
+				if (right.value !== "target") {
 					console.log("The only valid meta property for import is 'import.meta'");
 					throw new Error("parse failed");
 				}
@@ -2164,15 +2032,16 @@ const transformers = (() => {
 			elements: input.slice(1, input.length - 1),
 		})],
 		// 普通值语法
-		[ObjectAttributeRight[0], input => input[1]],
+		[ObjectAttributeRight[0], input => ({ method: false, value: input[1] })],
 		// 函数简写法
-		[ObjectAttributeRight[1], input => {
-			return {
+		[ObjectAttributeRight[1], input => ({
+			method: true,
+			value: {
 				type: "FunctionExpression",
 				params: input.slice(1, input.length - 2),
 				body: input[input.length - 1],
 			}
-		}],
+		})],
 		// 标识符作为key
 		[ObjectAttribute[0], input => {
 			// 如果不存在右侧，则赋予同名标识符即key本身
@@ -2181,24 +2050,30 @@ const transformers = (() => {
 			}
 			return {
 				type: "Property",
+				kind: "init",
 				key: input[0],
-				value: input[1],
+				method: input[1].method,
+				value: input[1].value,
 			}
 		}],
 		// 字符串作为key
 		[ObjectAttribute[1], input => {
 			return {
 				type: "Property",
+				kind: "init",
 				key: input[0],
-				value: input[1],
+				method: input[1].method,
+				value: input[1].value,
 			}
 		}],
 		// 计算出的key
 		[ObjectAttribute[2], input => {
 			return {
 				type: "Property",
+				kind: "init",
 				key: input[1],
-				value: input[3],
+				method: input[3].method,
+				value: input[3].value,
 				computed: true,
 			}
 		}],
@@ -2209,27 +2084,80 @@ const transformers = (() => {
 		})],
 		[ObjectAttribute[4], input => ({
 			type: "Property",
+			kind: "init",
 			key: input[0],
-			value: input[1],
+			method: input[1].method,
+			value: input[1].value,
 		})],
 		[ObjectAttribute[5], input => ({
 			type: "Property",
+			kind: "init",
 			// boolean 作为 属性名
 			key: {
 				type: "Identifier",
 				name: input[0].raw,
 			},
-			value: input[1],
+			method: input[1].method,
+			value: input[1].value,
 		})],
 		[ObjectAttribute[6], input => ({
 			type: "Property",
+			kind: "init",
 			// null 作为 属性名
 			key: {
 				type: "Identifier",
 				name: input[0].raw,
 			},
-			value: input[1],
+			method: input[1].method,
+			value: input[1].value,
 		})],
+		// getter setter
+		...(() => {
+			// 创建 FunctionExpression
+			const createFunctionExpression = (params, body) => {
+				return {
+					type: "FunctionExpression",
+					"async": false,
+					genrator: false,
+					params,
+					body,
+				}
+			};
+			// 如果是数字直接作为key，否则视为标识符
+			const transformKey = keyToken => (typeof keyToken.value === "number" ? keyToken : { type: "Identifier", name: keyToken.value });
+			// 如果是一般的单个字面量作为名字，那么直接取
+			const normalGetterTransformer = input => ({ isComputed: false, key: transformKey(input[0]), value: createFunctionExpression([], input[3]) });
+			const normalSetterTransformer = input => ({ isComputed: false, key: transformKey(input[0]), value: createFunctionExpression([input[2]], input[4]) });
+			// 如果计算属性那么取索引为2的
+			const computedGetterTransformer = input => ({ isComputed: true, key: input[1], value: createFunctionExpression([], input[5]) });
+			const computedSetterTransformer = input => ({ isComputed: true, key: input[1], value: createFunctionExpression([input[4]], input[6]) });
+
+			// 根据 production 获取 transformer
+			const getTransformer = (production, type) => {
+				// 索引1为 Expression 的，使用 computedHandler
+				if (production?.[1]?.value === "Expression") {
+					return ({ getter: computedGetterTransformer, setter: computedSetterTransformer })[type];
+				} else {
+					return ({ getter: normalGetterTransformer, setter: normalSetterTransformer })[type];
+				}
+			};
+
+			const contentTransformer = ([{ value: kind }, { isComputed, key, value }]) => ({
+				type: "Property",
+				kind,
+				computed: isComputed,
+				key,
+				value,
+				method: true,
+			});
+			return [
+				...MethodGetterContent.map(production => ([production, getTransformer(production, "getter")])),
+				...MethodSetterContent.map(production => ([production, getTransformer(production, "setter")])),
+				[MethodGetterOrSetter[0], contentTransformer],
+				[MethodGetterOrSetter[1], contentTransformer],
+			];
+		})(),
+		[ObjectAttribute[7], input => (input[0])],
 		[ObjectLiteral[0], input => ({
 			type: "ObjectExpression",
 			// 截取内容部分
@@ -2732,7 +2660,7 @@ const transformers = (() => {
 			// conten 最终处理为主体部分，仅从括号开始到循环体块结束的部分，不包含 await 关键字
 			let content = input;
 			let isAwait = false;
-			if(content[0]?.value === "await") {
+			if (content[0]?.value === "await") {
 				content = content.slice(1);
 				isAwait = true;
 			}
@@ -3311,7 +3239,7 @@ function parse(input) {
 				if (specialType === "ForInContent") {
 					token.production = not_end_symbols.ForInContent[0];
 					delete token.specialType;
-				}else if (specialType === "ForOfContent") {
+				} else if (specialType === "ForOfContent") {
 					token.production = not_end_symbols.ForOfContent[0];
 					delete token.specialType;
 				}
@@ -3325,19 +3253,19 @@ function parse(input) {
 			// console.log(p, name, token, production,index, sym, analyzeTable?.[name]);
 
 			// 需要产生式的 specialType 相关处理
-			if(specialType) {
+			if (specialType) {
 				// 如果是解构且因为是表达式所以当成了 ArrayLiteral 解析，那么就让其作为 ArrayPattern 解析
-				if(specialType === "ArrayDestructure" && p === not_end_symbols.ArrayLiteral[0]) {
+				if (specialType === "ArrayDestructure" && p === not_end_symbols.ArrayLiteral[0]) {
 					token.production = not_end_symbols.ArrayPattern[0];
 					delete token.specialType;
 				}
 				// 两步成功解析 数组解构表达式
 				// 如果是 ObjectDestructure 类型，且被解析为 Block, 那么让其当成 Expression 解析，以保证优先级的等相关东西
-				if(specialType === "ObjectDestructure" && p === not_end_symbols.Block[0]) {
+				if (specialType === "ObjectDestructure" && p === not_end_symbols.Block[0]) {
 					token.production = not_end_symbols.Expression[0];
 				}
 				// 因为上面当作 Expression 解析，这样不论是单独写还是在表达式中的，只要为 ObjectDestructure，在解析 Expression 时必然被当作 ObjectLiternal, 将这部分符合条件的使用 ObjectPattern 解析即可
-				if(specialType === "ObjectDestructure" && p === not_end_symbols.ObjectLiteral[0]) {
+				if (specialType === "ObjectDestructure" && p === not_end_symbols.ObjectLiteral[0]) {
 					token.production = not_end_symbols.ObjectPattern[0];
 					delete token.specialType2;
 				}
@@ -3349,13 +3277,13 @@ function parse(input) {
 				// 取完就删除，否则会重新进入该部分无限递归
 				delete token.production;
 			}
-			
+
 			// 如果是 KEYWORD 则可能是 Identify, 即关键字作为标识符,使用标识符查找产生式
 			if (!p && token.type === TOKEN_TYPES.KEYWORD && name !== "Statements" /* 语句中不可存在关键字(这样也对于switch中case不做处理) */) {
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
 			// new.target 标记
-			if(token.value === "new" && tokens[tokens.length - 2]?.value === ".") {
+			if (token.value === "new" && tokens[tokens.length - 2]?.value === ".") {
 				// 设置值为该标记，这样该 new 在 Term17 就会被忽略(否则该 new 会被 Term17 使用，产生冲突问题), 待进入 Expr 之后特殊处理
 				token.value = NEW_POINT_TARGET_IDENTIFY;
 			}
