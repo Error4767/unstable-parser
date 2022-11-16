@@ -3226,6 +3226,14 @@ function parse(input) {
 	const tokens = [...input].reverse();
 
 	const token = tokens[tokens.length - 1];
+	// 无 token 的话，就返回一个 Statements 为空的 Program 形式
+	if(!token) {
+		return {
+			production: not_end_symbols.Program[0],
+			children: [],
+		}
+	}
+	
 	const production = analyzeTable.Program.get(token.type) || analyzeTable.Program.get(token.value);
 
 	const matchProd = (production, container) => production.every((sym, index) => {
@@ -3365,7 +3373,12 @@ function parse(input) {
 		production,
 	};
 	matchProd(production, container);
-	// console.log(tokens);
+
+	// 如果还有 token 尚未被消耗，那么就出现了无法解析的语法
+	if(tokens.length > 0) {
+		throw new Error("Uncaught SyntaxError: Unexpected token " + tokens[tokens.length - 1].value);
+	}
+
 	return container;
 }
 
