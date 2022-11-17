@@ -147,6 +147,9 @@ const keyWords = {};
 	"with",
 	"get",
 	"set",
+	"class",
+	"static",
+	"extends",
 ].forEach(key => {
 	keyWords[key] = TOKEN_TYPES.KEYWORD;
 });

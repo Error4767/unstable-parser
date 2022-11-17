@@ -173,6 +173,10 @@ const END_SYMBOLS = {
 	// GET SET
 	GET: { type: END_SYMBOL, value: "get" },
 	SET: { type: END_SYMBOL, value: "set" },
+	// class
+	CLASS: { type: END_SYMBOL, value: "class" },
+	STATIC: { type: END_SYMBOL, value: "static" },
+	EXTENDS: { type: END_SYMBOL, value: "extends" },
 
 	[TOKEN_TYPES.TEMPLATE_STRING]: { // 模板字符串中的字符串
 		type: END_SYMBOL,
@@ -274,6 +278,30 @@ const DATA_TYPE_SYMBOLS = {
 	},
 }
 
+// 有效属性名, 在下面的对象属性和类项目会用到
+const validPropertyNames = [
+	[
+		END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+	],
+	[
+		END_SYMBOLS["["],
+		{ type: NOT_END_SYMBOL, value: "Expression" },
+		END_SYMBOLS["]"],
+	],
+	[
+		DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
+	],
+	[
+		DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
+	],
+	[
+		DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
+	],
+	[
+		DATA_TYPE_SYMBOLS[TOKEN_TYPES.NULL_LITERAL],
+	]
+];
+
 // 对象的key为非终结符，值为可用的产生式数组
 const not_end_symbols = {
 	// 箭头函数内容部分
@@ -348,10 +376,13 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "ArrowFunctionContent" },
 		],
 		[
-			{ type: NOT_END_SYMBOL, value: "FunctionDeclaration" },
+			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "AsyncFunction" },
+		],
+		[
+			{ type: NOT_END_SYMBOL, value: "ClassExpression" },
 		],
 	],
 	Term1: [
@@ -838,6 +869,13 @@ const not_end_symbols = {
 		[END_SYMBOLS[TOKEN_TYPES.IDENTIFY]],
 		[END_SYMBOLS.NONE],
 	],
+	// 可选 async
+	OptionalAsync: [
+		[
+			END_SYMBOLS.ASYNC
+		],
+		[END_SYMBOLS.NONE],
+	],
 	ObjectLiteral: [
 		[
 			END_SYMBOLS.START_BLOCK,
@@ -847,7 +885,7 @@ const not_end_symbols = {
 	],
 	ObjectContent: [
 		[
-			{ type: NOT_END_SYMBOL, value: "ObjectAttribute" },
+			{ type: NOT_END_SYMBOL, value: "ObjectProperty" },
 			{ type: NOT_END_SYMBOL, value: "ObjectContent" },
 		],
 		[
@@ -856,76 +894,38 @@ const not_end_symbols = {
 	],
 	// setter getter 相关产生式生成
 	...(() => {
-		const validGetterOrSetterKeys = [
-			[
-				END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
-			],
-			[
-				END_SYMBOLS["["],
-				{ type: NOT_END_SYMBOL, value: "Expression" },
-				END_SYMBOLS["]"],
-			],
-			[
-				DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
-			],
-			[
-				DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
-			],
-			[
-				END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
-			],
-			[
-				DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
-			]
-		];
-
 		return {
-			// 方法类型 get 或 set
-			MethodGetterOrSetter: [
-				[
-					END_SYMBOLS.GET,
-					{ type: NOT_END_SYMBOL, value: "MethodGetterContent" },
-				],
-				[
-					END_SYMBOLS.SET,
-					{ type: NOT_END_SYMBOL, value: "MethodSetterContent" },
-				],
-			],
-			MethodGetterContent: [
-				// 合并生成产生式
-				...validGetterOrSetterKeys.map(production => {
-					return [
-						...production,
-						END_SYMBOLS.START_BRACKET,
-						END_SYMBOLS.END_BRACKET,
-						{ type: NOT_END_SYMBOL, value: "Block" },
-					];
-				}),
-			],
-			MethodSetterContent: [
-				// 合并生成产生式
-				...validGetterOrSetterKeys.map(production => {
-					return [
-						...production,
-						END_SYMBOLS.START_BRACKET,
-						{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
-						END_SYMBOLS.END_BRACKET,
-						{ type: NOT_END_SYMBOL, value: "Block" },
-					];
-				}),
-			],
+			// 合并生成产生式
+			MethodGetterContent: validPropertyNames.map(production => {
+				return [
+					...production,
+					END_SYMBOLS.START_BRACKET,
+					END_SYMBOLS.END_BRACKET,
+					{ type: NOT_END_SYMBOL, value: "Block" },
+				];
+			}),
+			// 合并生成产生式
+			MethodSetterContent: validPropertyNames.map(production => {
+				return [
+					...production,
+					END_SYMBOLS.START_BRACKET,
+					{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
+					END_SYMBOLS.END_BRACKET,
+					{ type: NOT_END_SYMBOL, value: "Block" },
+				];
+			}),
 		}
 	})(),
-	ObjectAttribute: [
+	ObjectProperty: [
 		[
 			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
-			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			{ type: NOT_END_SYMBOL, value: "ObjectPropertyContent" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 		// 字符属性名
 		[
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
-			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			{ type: NOT_END_SYMBOL, value: "ObjectPropertyContent" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 		// 计算属性名
@@ -933,7 +933,25 @@ const not_end_symbols = {
 			END_SYMBOLS["["],
 			{ type: NOT_END_SYMBOL, value: "Expression" },
 			END_SYMBOLS["]"],
-			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			{ type: NOT_END_SYMBOL, value: "ObjectPropertyContent" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		// 数值字面量属性名
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
+			{ type: NOT_END_SYMBOL, value: "ObjectPropertyContent" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		// 布尔值字面量属性名
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
+			{ type: NOT_END_SYMBOL, value: "ObjectPropertyContent" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		// null字面量属性名
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NULL_LITERAL],
+			{ type: NOT_END_SYMBOL, value: "ObjectPropertyContent" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 		// 展开操作符
@@ -942,31 +960,103 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Term1_" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
-		// 数值字面量属性名
+		// getter
 		[
-			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
-			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			END_SYMBOLS.GET,
+			// 由于 get 可能是异步函数标识，也可能是属性名称(Keyword 也会当做 Identidy 解析)，需要进一步解析
+			{ type: NOT_END_SYMBOL, value: "ObjectPropertyStartInGet" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
-		// 布尔值字面量属性名
+		// setter
 		[
-			DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
-			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			END_SYMBOLS.SET,
+			// 由于 set 可能是异步函数标识，也可能是属性名称(Keyword 也会当做 Identidy 解析)，需要进一步解析
+			{ type: NOT_END_SYMBOL, value: "ObjectPropertyStartInSet" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
-		// null字面量属性名
+		// async function
 		[
-			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NULL_LITERAL],
-			{ type: NOT_END_SYMBOL, value: "ObjectAttributeRight" },
+			END_SYMBOLS.ASYNC,
+			// 由于 async 可能是异步函数标识，也可能是属性名称(Keyword 也会当做 Identidy 解析)，需要进一步解析
+			{ type: NOT_END_SYMBOL, value: "ObjectPropertyStartInAsync" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
-		// 属性
+		// generator Function
 		[
-			{ type: NOT_END_SYMBOL, value: "MethodGetterOrSetter" },
+			END_SYMBOLS["*"],
+			{ type: NOT_END_SYMBOL, value: "PropertyMethodContent" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 	],
-	ObjectAttributeRight: [
+	// 属性名从 get 开始，可能是异步函数，或者就是一般的属性名
+	ObjectPropertyStartInGet: [
+		// getter
+		[
+			{ type: NOT_END_SYMBOL, value: "MethodGetterContent" },
+		],
+		// 一般属性
+		[
+			END_SYMBOLS[":"],
+			{ type: NOT_END_SYMBOL, value: "Term1_" },
+		],
+		// 方法简写
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+	],
+	// 属性名从 set 开始，可能是异步函数，或者就是一般的属性名
+	ObjectPropertyStartInSet: [
+		// getter
+		[
+			{ type: NOT_END_SYMBOL, value: "MethodSetterContent" },
+		],
+		// 一般属性
+		[
+			END_SYMBOLS[":"],
+			{ type: NOT_END_SYMBOL, value: "Term1_" },
+		],
+		// 方法简写
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+	],
+	// 属性名从 async 开始，可能是异步函数，或者就是一般的属性名
+	ObjectPropertyStartInAsync: [
+		// 异步函数
+		[
+			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			{ type: NOT_END_SYMBOL, value: "PropertyMethodContent" },
+		],
+		// 一般属性
+		[
+			END_SYMBOLS[":"],
+			{ type: NOT_END_SYMBOL, value: "Term1_" },
+		],
+		// 方法简写
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+	],
+	// 属性函数主体，不含 async 和 *
+	PropertyMethodContent: validPropertyNames.map(production => {
+		return [
+			...production,
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		];
+	}),
+	ObjectPropertyContent: [
 		// 普通值
 		[
 			END_SYMBOLS[":"],
@@ -975,7 +1065,7 @@ const not_end_symbols = {
 		// 函数语法
 		[
 			END_SYMBOLS.START_BRACKET,
-			{ type: NOT_END_SYMBOL, value: "FunctionParamsDeclaration" },
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Block" },
 		],
@@ -1219,7 +1309,7 @@ const not_end_symbols = {
 			END_SYMBOLS[","],
 		]
 	],
-	FunctionDeclaration: [
+	FunctionExpression: [
 		[
 			END_SYMBOLS.FUNCTION,
 			// 生成器乘号标识（可选）
@@ -1227,15 +1317,15 @@ const not_end_symbols = {
 			// 函数名称是可选的
 			{ type: NOT_END_SYMBOL, value: "OptionalIdentify" },
 			END_SYMBOLS.START_BRACKET,
-			{ type: NOT_END_SYMBOL, value: "FunctionParamsDeclaration" },
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Block" },
 		]
 	],
-	FunctionParamsDeclaration: [
+	FunctionParams: [
 		[
 			{ type: NOT_END_SYMBOL, value: "FunctionParam" },
-			{ type: NOT_END_SYMBOL, value: "FunctionParamsDeclaration" },
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
 		],
 		[
 			END_SYMBOLS.NONE,
@@ -1265,7 +1355,7 @@ const not_end_symbols = {
 	// 异步函数体
 	AsyncFunctionContent: [
 		[
-			{ type: NOT_END_SYMBOL, value: "FunctionDeclaration" },
+			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
 		],
 		[
 			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
@@ -1273,7 +1363,7 @@ const not_end_symbols = {
 		],
 		[
 			END_SYMBOLS.START_BRACKET,
-			{ type: NOT_END_SYMBOL, value: "FunctionParamsDeclaration" },
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "ArrowFunctionContent" },
 		],
@@ -1460,6 +1550,161 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Statements" },
 		]
 	],
+	ClassExpression: [
+		[
+			END_SYMBOLS.CLASS,
+			{ type: NOT_END_SYMBOL, value: "ClassContent" },
+		]
+	],
+	ClassContent: [
+		[
+			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			{ type: NOT_END_SYMBOL, value: "OptionalSuperClass" },
+			{ type: NOT_END_SYMBOL, value: "ClassBody" },
+		],
+		[
+			{ type: NOT_END_SYMBOL, value: "OptionalSuperClass" },
+			{ type: NOT_END_SYMBOL, value: "ClassBody" },
+		]
+	],
+	OptionalSuperClass: [
+		[
+			END_SYMBOLS.EXTENDS,
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+		],
+		[END_SYMBOLS.NONE],
+	],
+	ClassBody: [
+		[
+			END_SYMBOLS.START_BLOCK,
+			{ type: NOT_END_SYMBOL, value: "ClassItems" },
+			END_SYMBOLS.END_BLOCK,
+		]
+	],
+	ClassItems: [
+		[
+			{ type: NOT_END_SYMBOL, value: "ClassItem" },
+			{ type: NOT_END_SYMBOL, value: "ClassItems" },
+		],
+		[END_SYMBOLS.NONE],
+	],
+	OptionalStatic: [
+		[
+			END_SYMBOLS.STATIC,
+		],
+		[END_SYMBOLS.NONE],
+	],
+	ClassItem: [
+		[
+			{ type: NOT_END_SYMBOL, value: "OptionalStatic" },
+			{ type: NOT_END_SYMBOL, value: "ClassItemContent" },
+			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+		]
+	],
+	ClassItemContent: [
+		[
+			END_SYMBOLS.GET,
+			{ type: NOT_END_SYMBOL, value: "ClassItemStartInGet" },
+		],
+		[
+			END_SYMBOLS.SET,
+			{ type: NOT_END_SYMBOL, value: "ClassItemStartInSet" },
+		],
+		// async function
+		[
+			END_SYMBOLS.ASYNC,
+			{ type: NOT_END_SYMBOL, value: "ClassItemStartInAsync" },
+		],
+		// generator function
+		[
+			END_SYMBOLS["*"],
+			{ type: NOT_END_SYMBOL, value: "PropertyMethodContent" },
+		],
+		// class static block
+		[
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+		...(()=> {
+			return validPropertyNames.map(production=> {
+				return [
+					...production,
+					{ type: NOT_END_SYMBOL, value: "ClassItemContentMethodOrPropertyRight" },
+				]
+			});
+		})(),
+	],
+	// 类项从 get 开始，可能是异步函数，或者就是一般的属性名
+	ClassItemStartInGet: [
+		// getter
+		[
+			{ type: NOT_END_SYMBOL, value: "MethodGetterContent" },
+		],
+		// 一般属性
+		[
+			END_SYMBOLS["="],
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+		],
+		// 方法简写
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+	],
+	// 类项从 set 开始，可能是异步函数，或者就是一般的属性名
+	ClassItemStartInSet: [
+		// getter
+		[
+			{ type: NOT_END_SYMBOL, value: "MethodSetterContent" },
+		],
+		// 一般属性
+		[
+			END_SYMBOLS["="],
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+		],
+		// 方法简写
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+	],
+	// 类项从 async 开始，可能是异步函数，或者就是一般的属性名
+	ClassItemStartInAsync: [
+		// 异步函数
+		[
+			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			{ type: NOT_END_SYMBOL, value: "PropertyMethodContent" },
+		],
+		// 一般属性
+		[
+			END_SYMBOLS["="],
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+		],
+		// 方法简写
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+	],
+	// 右侧内容部分，可以为类方法或类属性定义
+	ClassItemContentMethodOrPropertyRight: [
+		[
+			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+		[
+			END_SYMBOLS["="],
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+		],
+	],
 	Program: [
 		[
 			{ type: NOT_END_SYMBOL, value: "Statements" },
@@ -1620,7 +1865,7 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "VariableDeclaration" },
 		],
 		[
-			{ type: NOT_END_SYMBOL, value: "FunctionDeclaration" },
+			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
 		],
 		[
 			END_SYMBOLS["*"],
@@ -1706,7 +1951,7 @@ const transformers = (() => {
 		ArrayPattern,
 		ArrayPatternItem,
 
-		FunctionDeclaration,
+		FunctionExpression,
 		FunctionParam,
 		AsyncFunction,
 		AsyncFunctionContent,
@@ -1740,22 +1985,33 @@ const transformers = (() => {
 		ImportIdentify,
 		ImportSpecifers,
 		ImportDefault,
-		Imports,
 		ExportContent,
 		OptionalExportAllExported,
 		ExportRedirect,
 		ModuleSpecifers,
-		ModuleSpecifersItems,
 		ModuleSpecifersItem,
 		ModuleOptionalAlias,
+		ClassItemContent,
+		ClassItemStartInGet,
+		ClassItemStartInSet,
+		ClassItemStartInAsync,
+		ClassItem,
+		ClassContent,
+		ClassBody,
+		OptionalSuperClass,
+		ClassExpression,
 
 		ObjectLiteral,
 		ArrayLiteral,
-		ObjectAttribute,
-		ObjectAttributeRight,
-		MethodGetterOrSetter,
+		ObjectProperty,
+		ObjectPropertyContent,
 		MethodGetterContent,
 		MethodSetterContent,
+		PropertyMethodContent,
+		ObjectPropertyStartInAsync,
+		ObjectPropertyStartInGet,
+		ObjectPropertyStartInSet,
+
 		ArrayItem,
 		ArrowFunctionContent,
 
@@ -2077,18 +2333,20 @@ const transformers = (() => {
 			elements: input.slice(1, input.length - 1),
 		})],
 		// 普通值语法
-		[ObjectAttributeRight[0], input => ({ method: false, value: input[1] })],
+		[ObjectPropertyContent[0], input => ({ method: false, value: input[1] })],
 		// 函数简写法
-		[ObjectAttributeRight[1], input => ({
+		[ObjectPropertyContent[1], input => ({
 			method: true,
 			value: {
 				type: "FunctionExpression",
+				"async": false,
+				generator: false,
 				params: input.slice(1, input.length - 2),
 				body: input[input.length - 1],
 			}
 		})],
 		// 标识符作为key
-		[ObjectAttribute[0], input => {
+		[ObjectProperty[0], input => {
 			// 如果不存在右侧，则赋予同名标识符即key本身
 			if (!input[1]) {
 				input[1] = input[0];
@@ -2102,7 +2360,7 @@ const transformers = (() => {
 			}
 		}],
 		// 字符串作为key
-		[ObjectAttribute[1], input => {
+		[ObjectProperty[1], input => {
 			return {
 				type: "Property",
 				kind: "init",
@@ -2112,7 +2370,7 @@ const transformers = (() => {
 			}
 		}],
 		// 计算出的key
-		[ObjectAttribute[2], input => {
+		[ObjectProperty[2], input => {
 			return {
 				type: "Property",
 				kind: "init",
@@ -2122,19 +2380,14 @@ const transformers = (() => {
 				computed: true,
 			}
 		}],
-		// 展开操作符
-		[ObjectAttribute[3], input => ({
-			type: "SpreadElement",
-			argument: input[1],
-		})],
-		[ObjectAttribute[4], input => ({
+		[ObjectProperty[3], input => ({
 			type: "Property",
 			kind: "init",
 			key: input[0],
 			method: input[1].method,
 			value: input[1].value,
 		})],
-		[ObjectAttribute[5], input => ({
+		[ObjectProperty[4], input => ({
 			type: "Property",
 			kind: "init",
 			// boolean 作为 属性名
@@ -2145,7 +2398,7 @@ const transformers = (() => {
 			method: input[1].method,
 			value: input[1].value,
 		})],
-		[ObjectAttribute[6], input => ({
+		[ObjectProperty[5], input => ({
 			type: "Property",
 			kind: "init",
 			// null 作为 属性名
@@ -2156,53 +2409,11 @@ const transformers = (() => {
 			method: input[1].method,
 			value: input[1].value,
 		})],
-		// getter setter
-		...(() => {
-			// 创建 FunctionExpression
-			const createFunctionExpression = (params, body) => {
-				return {
-					type: "FunctionExpression",
-					"async": false,
-					genrator: false,
-					params,
-					body,
-				}
-			};
-			// 如果是数字直接作为key，否则视为标识符
-			const transformKey = keyToken => (typeof keyToken.value === "number" ? keyToken : { type: "Identifier", name: keyToken.value });
-			// 如果是一般的单个字面量作为名字，那么直接取
-			const normalGetterTransformer = input => ({ isComputed: false, key: transformKey(input[0]), value: createFunctionExpression([], input[3]) });
-			const normalSetterTransformer = input => ({ isComputed: false, key: transformKey(input[0]), value: createFunctionExpression([input[2]], input[4]) });
-			// 如果计算属性那么取索引为2的
-			const computedGetterTransformer = input => ({ isComputed: true, key: input[1], value: createFunctionExpression([], input[5]) });
-			const computedSetterTransformer = input => ({ isComputed: true, key: input[1], value: createFunctionExpression([input[4]], input[6]) });
-
-			// 根据 production 获取 transformer
-			const getTransformer = (production, type) => {
-				// 索引1为 Expression 的，使用 computedHandler
-				if (production?.[1]?.value === "Expression") {
-					return ({ getter: computedGetterTransformer, setter: computedSetterTransformer })[type];
-				} else {
-					return ({ getter: normalGetterTransformer, setter: normalSetterTransformer })[type];
-				}
-			};
-
-			const contentTransformer = ([{ value: kind }, { isComputed, key, value }]) => ({
-				type: "Property",
-				kind,
-				computed: isComputed,
-				key,
-				value,
-				method: true,
-			});
-			return [
-				...MethodGetterContent.map(production => ([production, getTransformer(production, "getter")])),
-				...MethodSetterContent.map(production => ([production, getTransformer(production, "setter")])),
-				[MethodGetterOrSetter[0], contentTransformer],
-				[MethodGetterOrSetter[1], contentTransformer],
-			];
-		})(),
-		[ObjectAttribute[7], input => (input[0])],
+		// 展开操作符
+		[ObjectProperty[6], input => ({
+			type: "SpreadElement",
+			argument: input[1],
+		})],
 		[ObjectLiteral[0], input => ({
 			type: "ObjectExpression",
 			// 截取内容部分
@@ -2445,8 +2656,303 @@ const transformers = (() => {
 		})],
 	];
 
+	// 有效属性遍历相关的转换器，包括对象和 class 的许多部分
+	const validProperyTraversalRelatedTransformers = [
+		// getter setter
+		...(() => {
+			// 如果是字符和数字直接作为key，否则视为标识符
+			const transformKey = keyToken => ((typeof keyToken.value === "number" || typeof keyToken.value === "string") ? keyToken : { type: "Identifier", name: String(keyToken.value) });
+
+			// 创建 FunctionExpression
+			const createFunctionExpression = (params, body) => {
+				return {
+					type: "FunctionExpression",
+					"async": false,
+					generator: false,
+					params,
+					body,
+				}
+			};
+
+			// 方法主体转换器
+			const createFunctionContentTransformer = name=> input=> ({
+				type: "Property",
+				kind: "init",
+				method: false,
+				computed: false,
+				key: {
+					type: "Identifier",
+					name,
+				},
+				value: createFunctionExpression(input.slice(1, input.length - 2), input[input.length - 1]),
+			});
+
+			// 对象 getter setter
+			// 如果是一般的单个字面量作为名字，那么直接取
+			const normalGetterTransformer = input => ({ isMethod: true, key: transformKey(input[0]), value: createFunctionExpression([], input[3]) });
+			const normalSetterTransformer = input => ({ isMethod: true, key: transformKey(input[0]), value: createFunctionExpression([input[2]], input[4]) });
+			// 如果计算属性那么取索引为2的
+			const computedGetterTransformer = input => ({ isMethod: true, isComputed: true, key: input[1], value: createFunctionExpression([], input[5]) });
+			const computedSetterTransformer = input => ({ isMethod: true, isComputed: true, key: input[1], value: createFunctionExpression([input[4]], input[6]) });
+			// 根据 production 获取 transformer
+			const getTransformer = (production, type) => {
+				// 索引1为 Expression 的，使用 computedHandler
+				if (production?.[1]?.value === "Expression") {
+					return ({ getter: computedGetterTransformer, setter: computedSetterTransformer })[type];
+				} else {
+					return ({ getter: normalGetterTransformer, setter: normalSetterTransformer })[type];
+				}
+			};
+			// set, get 开头的内容处理, isMethod 代表是否是 setter, getter
+			const objectStartInSetOrGetTransformer = ([{ value: kind }, { isMethod, isComputed, key, value }]) => ({
+				type: "Property",
+				kind: isMethod ? kind : "init",
+				method: isMethod ? true : false,
+				computed: isComputed ? true : false,
+				key,
+				value,
+			});
+
+			// 对象方法 async generator 的函数主体部分
+			// 如果是一般的单个字面量作为名字，那么直接取
+			const normalMethodTransformer = input => ({ isMethod: true, key: transformKey(input[0]), value: createFunctionExpression(input.slice(2, input.lenth - 2), input[input.length - 1]) });
+			// 如果计算属性那么取索引为2的
+			const computedMethodTransformer = input => ({ isMethod: true, isComputed: true, key: input[1], value: createFunctionExpression(input.slice(4, input.lenth - 2), input[input.length - 1]) });
+			// 根据产生式选择 Transformer
+			const getMethodTransformer = (production) => (production?.[1]?.value === "Expression" ? computedMethodTransformer : normalMethodTransformer);
+
+			// class 的 setter 和 getter 转换，仅和 object 的 type 不同, isMethod 仍代表是否是 setter, getter
+			const classItemStartInSetOrGetTransformer = ([{ value: kind }, { isProperty, isMethod, isComputed, key, value }]) => ({
+				type: isProperty ? "PropertyDefinition" : "MethodDefinition",
+				static: false,
+				kind: isMethod ? kind : "method",
+				computed: isComputed ? true : false,
+				key,
+				value,
+			});
+			
+			return [
+				// object property setter, getter
+				...MethodGetterContent.map(production => ([production, getTransformer(production, "getter")])),
+				...MethodSetterContent.map(production => ([production, getTransformer(production, "setter")])),
+				// 1 是普通属性，需要处理为 { isMethod, isComputed, key, value } 的格式便于给 objectSetOrGetTransformer 继续处理区分
+				[ObjectPropertyStartInGet[1], input=> ({
+					key: {
+						type: "Identifier",
+						name: "get",
+					}, 
+					value: input[1],
+				})],
+				[ObjectPropertyStartInGet[2], createFunctionContentTransformer("get")],
+				[ObjectPropertyStartInSet[1], input=> ({
+					key: {
+						type: "Identifier",
+						name: "set",
+					}, 
+					value: input[1],
+				})],
+				[ObjectPropertyStartInSet[2], createFunctionContentTransformer("set")],
+				[ObjectProperty[7], objectStartInSetOrGetTransformer],
+				[ObjectProperty[8], objectStartInSetOrGetTransformer],
+				// object async, generator
+				...PropertyMethodContent.map(production => ([production, getMethodTransformer(production)])),
+				// ObjectProperty handler
+				[ObjectPropertyStartInAsync[0], input=> {
+					// 异步生成器函数
+					if(input[0]?.value === "*") {
+						return {
+							type: "Property",
+							kind: "init",
+							method: true,
+							computed: input[1].isComputed,
+							key: input[1].key,
+							value: {
+								...input[1].value,
+								"async": true,
+								generator: true,
+							},
+						}
+					}else {
+						// 异步函数
+						return {
+							type: "Property",
+							kind: "init",
+							method: true,
+							computed: input[0].isComputed,
+							key: input[0].key,
+							value: {
+								...input[0].value,
+								"async": true,
+								generator: false,
+							},
+						};
+					}
+				}],
+				[ObjectPropertyStartInAsync[1], input=> ({
+					type: "Property",
+					kind: "init",
+					method: false,
+					computed: false,
+					key: {
+						type: "Identifier",
+						name: "async",
+					},
+					value: input[1],
+				})],
+				[ObjectPropertyStartInAsync[2], createFunctionContentTransformer("async")],
+				[ObjectProperty[9], input=> (input[1])],
+				// 生成器函数
+				[ObjectProperty[10], input => ({
+					type: "Property",
+					kind: "init",
+					method: true,
+					computed: input[1].isComputed,
+					key: input[1].key,
+					value: {
+						...input[1].value,
+						"async": true,
+						generator: false,
+					},
+				})],
+
+				// class 相关所有的
+				// class setter, getter
+				[ClassItemContent[0], classItemStartInSetOrGetTransformer],
+				[ClassItemContent[1], classItemStartInSetOrGetTransformer],
+				// 1 是普通属性，需要处理为 { isMethod, isComputed, key, value } 的格式便于给 classItemStartInSetOrGetTransformer 继续处理区分
+				[ClassItemStartInGet[1], input=> ({
+					isProperty: true,
+					key: {
+						type: "Identifier",
+						name: "get",
+					}, 
+					value: input[1],
+				})],
+				[ClassItemStartInSet[2], createFunctionContentTransformer("get")],
+				// 1 是普通属性，需要处理为 { isMethod, isComputed, key, value } 的格式便于给 classItemStartInSetOrGetTransformer 继续处理区分
+				[ClassItemStartInSet[1], input=> ({
+					isProperty: true,
+					key: {
+						type: "Identifier",
+						name: "set",
+					}, 
+					value: input[1],
+				})],
+				[ClassItemStartInSet[2], createFunctionContentTransformer("set")],
+				[ClassItemStartInAsync[0], input=> {
+					// 异步生成器函数
+					if(input[0]?.value === "*") {
+						return {
+							type: "MethodDefinition",
+							kind: "method",
+							static: false,
+							computed: input[1].isComputed,
+							key: input[1].key,
+							value: {
+								...input[1].value,
+								"async": true,
+								generator: true,
+							},
+						}
+					}else {
+						// 异步函数
+						return {
+							type: "MethodDefinition",
+							kind: "method",
+							static: false,
+							computed: input[0].isComputed,
+							key: input[0].key,
+							value: {
+								...input[0].value,
+								"async": true,
+								generator: false,
+							},
+						};
+					}
+				}],
+				[ClassItemStartInAsync[1], input=> ({
+					type: "PropertyDefinition",
+					static: false,
+					computed: false,
+					key: {
+						type: "Identifier",
+						name: "async",
+					},
+					value: input[1],
+				})],
+				[ClassItemStartInAsync[2], createFunctionContentTransformer("async")],
+				// static block
+				[ClassItemContent[4], input=> ({...input[0], type: "StaticBlock"})],
+				// // 从索引5个开始都是一般属性的声明
+				// ...ClassItemContent.slice(4).map(production=> {
+
+				// }),
+				[ClassItem[0], input=> {
+					// 如果是 static
+					if(input[0]?.value === "static") {
+						// 如果是 StaticBlock 不做处理直接返回
+						if(input[1].type === "StaticBlock") {
+							return input[1];
+						}else {
+							// 否则加上 static: true
+							return {
+								...input[1],
+								static: true,
+							}
+						}
+					}else {
+						// 不是则直接返回, 因为默认是 false，无需处理
+						return input[0];
+					}
+				}],
+				[ClassBody[0], input=> ({
+					type: "ClassBody",
+					body: input.slice(1, input.length - 1),
+				})],
+				// 这里的 type superClass 只是一个标记
+				[OptionalSuperClass[0], input=> ({ type: "superClass", value: input[1] })],
+				[ClassContent[0], input=> {
+					if(input.length === 3) {
+						return {
+							type: "ClassExpression",
+							id: input[0],
+							superClass: input[1].value,
+							body: input[2],
+						};
+					}else {
+						return {
+							type: "ClassExpression",
+							id: input[0],
+							superClass: null,
+							body: input[1],
+						};
+					}
+				}],
+				[ClassContent[1], input=> {
+					if(input[1]) {
+						return {
+							type: "ClassExpression",
+							id: null,
+							superClass: input[0].value,
+							body: input[1],
+						};
+					}else {
+						return {
+							type: "ClassExpression",
+							id: null,
+							superClass: null,
+							body: input[0],
+						};
+					}
+				}],
+				[ClassExpression[0], input=> input[1]],
+			];
+		})(),
+	]
+
 	return new Map([
 		...termsAndBasicTypesTransformers,
+		...validProperyTraversalRelatedTransformers,
 		[OptionalComma[0], input => (input[0])],
 		[OptionalIdentify[0], input => (input[0])],
 
@@ -2548,7 +3054,7 @@ const transformers = (() => {
 			type: "ArrayPattern",
 			elements: input.slice(1, input.length - 1),
 		})],
-		[FunctionDeclaration[0], input => {
+		[FunctionExpression[0], input => {
 			const result = {
 				type: "FunctionExpression",
 				body: input[input.length - 1],
@@ -2790,11 +3296,17 @@ const transformers = (() => {
 		})],
 		// 表达式
 		[Statement[0], input => {
-			// 如果是函数声明，直接返回，否则包装为 ExpressionStatement
+			// 如果是函数声明，直接返回，并且类型改为 FunctionDeclaration
 			if (input[0].type === "FunctionExpression") {
 				input[0].type = "FunctionDeclaration";
 				return input[0];
 			}
+			// 如果是类声明，直接返回，并且类型改为 ClassDeclaration
+			if (input[0].type === "ClassExpression") {
+				input[0].type = "ClassDeclaration";
+				return input[0];
+			}
+			// 都不是，包装为普通的 ExpressionStatement
 			return {
 				type: "ExpressionStatement",
 				expression: input[0],
@@ -2985,7 +3497,7 @@ Object.entries(not_end_symbols).forEach(([key, productions]) => {
 const flatProductions = [
 	not_end_symbols.Statements[0],
 	not_end_symbols.ModuleSpecifersItems[0],
-	not_end_symbols.FunctionParamsDeclaration[0],
+	not_end_symbols.FunctionParams[0],
 	not_end_symbols.ObjectContent[0],
 	not_end_symbols.ArrayContent[0],
 	not_end_symbols.ObjectPatternItems[0],
@@ -2996,6 +3508,8 @@ const flatProductions = [
 	not_end_symbols.SwitchCases[0],
 	// term1 是分隔表达式，直接拍平
 	not_end_symbols.Term1[0],
+	// class 项拍平
+	not_end_symbols.ClassItems[0],
 ];
 
 // 获得 First 集
@@ -3290,7 +3804,7 @@ function parse(input) {
 				if (specialType === "ArrowFunciton") {
 					// 设置下一个token采用函数参数解析(如果不是空参数)
 					if (tokens?.[tokens.length - 2]?.value !== ")") {
-						tokens[tokens.length - 2].production = not_end_symbols.FunctionParamsDeclaration[0];
+						tokens[tokens.length - 2].production = not_end_symbols.FunctionParams[0];
 					}
 					delete token.specialType;
 				}
