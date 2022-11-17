@@ -1628,7 +1628,7 @@ const not_end_symbols = {
 			return validPropertyNames.map(production=> {
 				return [
 					...production,
-					{ type: NOT_END_SYMBOL, value: "ClassItemContentMethodOrPropertyRight" },
+					{ type: NOT_END_SYMBOL, value: "ClassItemNormalMethodOrPropertyContent" },
 				]
 			});
 		})(),
@@ -1692,7 +1692,7 @@ const not_end_symbols = {
 		],
 	],
 	// 右侧内容部分，可以为类方法或类属性定义
-	ClassItemContentMethodOrPropertyRight: [
+	ClassItemNormalMethodOrPropertyContent: [
 		[
 			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
 			END_SYMBOLS.START_BRACKET,
@@ -1868,6 +1868,9 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
 		],
 		[
+			{ type: NOT_END_SYMBOL, value: "ClassExpression" },
+		],
+		[
 			END_SYMBOLS["*"],
 			{ type: NOT_END_SYMBOL, value: "OptionalExportAllExported" },
 			END_SYMBOLS.FROM,
@@ -1992,6 +1995,7 @@ const transformers = (() => {
 		ModuleSpecifersItem,
 		ModuleOptionalAlias,
 		ClassItemContent,
+		ClassItemNormalMethodOrPropertyContent,
 		ClassItemStartInGet,
 		ClassItemStartInSet,
 		ClassItemStartInAsync,
@@ -2674,8 +2678,8 @@ const transformers = (() => {
 				}
 			};
 
-			// 方法主体转换器
-			const createFunctionContentTransformer = name=> input=> ({
+			// 对象方法主体转换器
+			const createObjectFunctionContentTransformer = (name)=> input=> ({
 				type: "Property",
 				kind: "init",
 				method: false,
@@ -2721,6 +2725,18 @@ const transformers = (() => {
 			// 根据产生式选择 Transformer
 			const getMethodTransformer = (production) => (production?.[1]?.value === "Expression" ? computedMethodTransformer : normalMethodTransformer);
 
+			// 类方法主体转换器
+			const createClassFunctionContentTransformer = (name)=> input=> ({
+				type: "MethodDefinition",
+				kind: "method",
+				computed: false,
+				key: {
+					type: "Identifier",
+					name,
+				},
+				value: createFunctionExpression(input.slice(1, input.length - 2), input[input.length - 1]),
+			});
+
 			// class 的 setter 和 getter 转换，仅和 object 的 type 不同, isMethod 仍代表是否是 setter, getter
 			const classItemStartInSetOrGetTransformer = ([{ value: kind }, { isProperty, isMethod, isComputed, key, value }]) => ({
 				type: isProperty ? "PropertyDefinition" : "MethodDefinition",
@@ -2743,7 +2759,7 @@ const transformers = (() => {
 					}, 
 					value: input[1],
 				})],
-				[ObjectPropertyStartInGet[2], createFunctionContentTransformer("get")],
+				[ObjectPropertyStartInGet[2], createObjectFunctionContentTransformer("get")],
 				[ObjectPropertyStartInSet[1], input=> ({
 					key: {
 						type: "Identifier",
@@ -2751,7 +2767,7 @@ const transformers = (() => {
 					}, 
 					value: input[1],
 				})],
-				[ObjectPropertyStartInSet[2], createFunctionContentTransformer("set")],
+				[ObjectPropertyStartInSet[2], createObjectFunctionContentTransformer("set")],
 				[ObjectProperty[7], objectStartInSetOrGetTransformer],
 				[ObjectProperty[8], objectStartInSetOrGetTransformer],
 				// object async, generator
@@ -2799,7 +2815,7 @@ const transformers = (() => {
 					},
 					value: input[1],
 				})],
-				[ObjectPropertyStartInAsync[2], createFunctionContentTransformer("async")],
+				[ObjectPropertyStartInAsync[2], createObjectFunctionContentTransformer("async")],
 				[ObjectProperty[9], input=> (input[1])],
 				// 生成器函数
 				[ObjectProperty[10], input => ({
@@ -2828,7 +2844,7 @@ const transformers = (() => {
 					}, 
 					value: input[1],
 				})],
-				[ClassItemStartInSet[2], createFunctionContentTransformer("get")],
+				[ClassItemStartInGet[2], createClassFunctionContentTransformer("get")],
 				// 1 是普通属性，需要处理为 { isMethod, isComputed, key, value } 的格式便于给 classItemStartInSetOrGetTransformer 继续处理区分
 				[ClassItemStartInSet[1], input=> ({
 					isProperty: true,
@@ -2838,7 +2854,7 @@ const transformers = (() => {
 					}, 
 					value: input[1],
 				})],
-				[ClassItemStartInSet[2], createFunctionContentTransformer("set")],
+				[ClassItemStartInSet[2], createClassFunctionContentTransformer("set")],
 				[ClassItemStartInAsync[0], input=> {
 					// 异步生成器函数
 					if(input[0]?.value === "*") {
@@ -2846,7 +2862,7 @@ const transformers = (() => {
 							type: "MethodDefinition",
 							kind: "method",
 							static: false,
-							computed: input[1].isComputed,
+							computed: input[1].isComputed ? true : false,
 							key: input[1].key,
 							value: {
 								...input[1].value,
@@ -2860,7 +2876,7 @@ const transformers = (() => {
 							type: "MethodDefinition",
 							kind: "method",
 							static: false,
-							computed: input[0].isComputed,
+							computed: input[0].isComputed ? true : false,
 							key: input[0].key,
 							value: {
 								...input[0].value,
@@ -2880,13 +2896,78 @@ const transformers = (() => {
 					},
 					value: input[1],
 				})],
-				[ClassItemStartInAsync[2], createFunctionContentTransformer("async")],
+				[ClassItemStartInAsync[2], createClassFunctionContentTransformer("async")],
+				// 异步函数
+				[ClassItemContent[2], input=> (input[1])],
+				// 生成器函数
+				[ClassItemContent[3], ([,{ isComputed, key, value }])=> ({
+					type: "MethodDefinition",
+					kind: "method",
+					static: false,
+					computed: isComputed ? true : false,
+					key,
+					value: {
+						...value,
+						generator: true,
+					},
+				})],
 				// static block
 				[ClassItemContent[4], input=> ({...input[0], type: "StaticBlock"})],
-				// // 从索引5个开始都是一般属性的声明
-				// ...ClassItemContent.slice(4).map(production=> {
-
-				// }),
+				[ClassItemNormalMethodOrPropertyContent[0], input=> {
+					// 检测是否是生成器
+					let paramsStartIndex = input[0]?.value === "*" ? 2 : 1;
+					return {
+						isProperty: false,
+						value: {
+							...createFunctionExpression(input.slice(paramsStartIndex, input.length - 2), input[input.length - 1]),
+							generator: true,
+							async: false,
+						},
+					}
+				}],
+				[ClassItemNormalMethodOrPropertyContent[1], input=> ({
+					isProperty: true,
+					value: input[1],
+				})],
+				// 从索引5个开始都是一般属性的声明
+				...ClassItemContent.slice(5).map(production=> {
+					return [production, (input)=> {
+						let key;
+						let value;
+						let isProperty;
+						let computed = false;
+						// 如果长度为 4， 就是计算属性名
+						if(input.length === 4) {
+							computed = true;
+							key = input[1];
+							value = input[3].value;
+							isProperty = input[3].isProperty;
+						}else {
+							// 一般属性名
+							key = input[0];
+							value = input[1].value;
+							isProperty = input[1].isProperty;
+						}
+						if(isProperty) {
+							return {
+								type: "PropertyDefinition",
+								static: false,
+								computed,
+								key: transformKey(key),
+								value,
+							}
+						}else {
+							return {
+								type: "MethodDefinition",
+								kind: "method",
+								static: false,
+								computed,
+								key: transformKey(key),
+								value,
+							}
+						}
+					}];
+				}),
 				[ClassItem[0], input=> {
 					// 如果是 static
 					if(input[0]?.value === "static") {
@@ -3446,6 +3527,8 @@ const transformers = (() => {
 		[ExportContent[0], input => {
 			// 如果是函数，类型就是函数声明
 			input[1].type === "FunctionExpression" && (input[1].type = "FunctionDeclaration");
+			// 如果是类，类型就是类声明
+			input[1].type === "ClassExpression" && (input[1].type = "ClassDeclaration");
 			return {
 				type: "ExportDefaultDeclaration",
 				declaration: input[1],
@@ -3468,15 +3551,24 @@ const transformers = (() => {
 			declaration: input[0],
 		})],
 		[ExportContent[3], input => {
-			// 如果是函数，类型就是函数声明
-			input[0].type === "FunctionExpression" && (input[0].type = "FunctionDeclaration");
+			// type 为声明
+			input[0].type = "FunctionDeclaration";
+			return {
+				type: "ExportNamedDeclaration",
+				declaration: input[0],
+			};
+		}],
+		[ExportContent[4], input => {
+			// type 为声明
+			input[0].type = "ClassDeclaration";
 			return {
 				type: "ExportNamedDeclaration",
 				declaration: input[0],
 			};
 		}],
 		[OptionalExportAllExported[0], input => (input[1])],
-		[ExportContent[4], input => ({
+		// 导出全部
+		[ExportContent[5], input => ({
 			type: "ExportAllDeclaration",
 			exported: input.length === 4 ? input[1] : null,
 			source: input[input.length - 1],
