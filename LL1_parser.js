@@ -31,7 +31,7 @@ function generateSyntaxDescriptionTexts() {
 
 /* 
 不符合 LL1 需要手写特殊逻辑解析的语法
-ArrowFunciton
+FunctionParams in ArrowFunciton
 ForInStatement
 ForOfStatement
 ArrayDesturcture in Expression
@@ -39,6 +39,7 @@ ObjectDestructure in Expression
 Dynamic Import
 import.meta
 new.target
+LabeledStatement
 */
 
 // 终结符
@@ -1557,6 +1558,14 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 	],
+	// 标签语句
+	LabeledStatement: [
+		[
+			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			END_SYMBOLS[":"],
+			{ type: NOT_END_SYMBOL, value: "Statement" },
+		]
+	],
 	// 导入标识是可选的
 	ImportIdentify: [
 		[
@@ -1726,6 +1735,7 @@ const transformers = (() => {
 		Program,
 		Statements,
 		Statement,
+		LabeledStatement,
 
 		ImportIdentify,
 		ImportSpecifers,
@@ -2861,6 +2871,12 @@ const transformers = (() => {
 			type: "EmptyStatement",
 		})],
 
+		[LabeledStatement[0], ([label,,body])=> ({
+			type: "LabeledStatement",
+			label,
+			body,
+		})],
+
 		[ImportIdentify[0], input => (input[0])],
 		[ImportDefault[0], input => (input[0])],
 		[ImportSpecifers[0], input => {
@@ -3326,14 +3342,19 @@ function parse(input) {
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
 			// new.target 标记
-			if (token.value === "new" && tokens[tokens.length - 2]?.value === ".") {
+			if (token.value === "new" && tokens?.[tokens.length - 2]?.value === ".") {
 				// 设置值为该标记，这样该 new 在 Term17 就会被忽略(否则该 new 会被 Term17 使用，产生冲突问题), 待进入 Expr 之后特殊处理
 				token.value = NEW_POINT_TARGET_IDENTIFY;
 			}
 			// 动态加载表达式 import() 和 模块元数据 import.meta 用法特殊处理
-			if (token.value === "import" && ["(", "."].includes(tokens[tokens.length - 2]?.value)) {
+			if (token.value === "import" && ["(", "."].includes(tokens?.[tokens.length - 2]?.value)) {
 				// 将该关键字作为 Identify 匹配
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
+			}
+			// LabeledStatement
+			// 如果在第一项，且产生式为 Expression 且下一个 token 是 : 则为 LabeledStatement
+			if(index === 0 && p === not_end_symbols.Statement[0] && tokens?.[tokens.length - 2]?.value === ":") {
+				p = not_end_symbols.LabeledStatement[0];
 			}
 
 			// 无法匹配
