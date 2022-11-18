@@ -1752,7 +1752,7 @@ const not_end_symbols = {
 			END_SYMBOLS.NONE
 		],
 	],
-	// 右侧内容部分，可以为类方法或类属性定义
+	// 右侧内容部分，可以为类方法或类属性定义,以及空
 	ClassItemNormalMethodOrPropertyContent: [
 		[
 			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
@@ -1765,6 +1765,9 @@ const not_end_symbols = {
 			END_SYMBOLS["="],
 			{ type: NOT_END_SYMBOL, value: "Expression" },
 		],
+		[
+			END_SYMBOLS.NONE,
+		]
 	],
 	Program: [
 		[
@@ -2414,16 +2417,26 @@ const transformers = (() => {
 		})],
 		// 标识符作为key
 		[ObjectProperty[0], input => {
-			// 如果不存在右侧，则赋予同名标识符即key本身
-			if (!input[1]) {
-				input[1] = input[0];
-			}
-			return {
-				type: "Property",
-				kind: "init",
-				key: input[0],
-				method: input[1].method,
-				value: input[1].value,
+			// 如果存在值，正常处理
+			if (input[1] && input[1]?.value !== ",") {
+				return {
+					type: "Property",
+					kind: "init",
+					method: input[1].method,
+					computed: false,
+					key: input[0],
+					value: input[1].value,
+				}
+			}else {
+				// 不存在值，则是简写属性
+				return {
+					type: "Property",
+					kind: "init",
+					method: false,
+					computed: false,
+					key: input[0],
+					value: input[0],
+				}
 			}
 		}],
 		// 字符串作为key
@@ -3081,17 +3094,31 @@ const transformers = (() => {
 						let value;
 						let isProperty;
 						let computed = false;
-						// 如果长度为 4， 就是计算属性名
-						if(input.length === 4) {
+						// 如果长度大于 3 (3：无值，4：有值)， 就是计算属性名
+						if(input.length >= 3) {
 							computed = true;
 							key = input[1];
-							value = input[3].value;
-							isProperty = input[3].isProperty;
+							// 如果有值，则正常处理
+							if(input[3]) {
+								value = input[3].value;
+								isProperty = input[3].isProperty;
+							}else {
+								// 没有值，是计算属性名属性声明，未初始化
+								value = null;
+								isProperty = true;
+							}
 						}else {
 							// 一般属性名
 							key = input[0];
-							value = input[1].value;
-							isProperty = input[1].isProperty;
+							// 如果有值，则正常处理
+							if(input[1]) {
+								value = input[1].value;
+								isProperty = input[1].isProperty;
+							}else {
+								// 没有值，是属性声明，未初始化
+								value = null;
+								isProperty = true;
+							}
 						}
 						if(isProperty) {
 							return {
