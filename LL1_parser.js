@@ -6,6 +6,16 @@ const NOT_END_SYMBOL = Symbol("no end");
 // new.target 标记
 const NEW_POINT_TARGET_IDENTIFY = Symbol("new.target");
 
+// 如果是字符和数字直接作为key，否则视为标识符
+const transformKey = keyToken => {
+	// 这三个如果作为 key 视为标识符，其他的直接返回
+	if([false, true, null].includes(keyToken.value)) {
+		return { type: "Identifier", name: String(keyToken.value) };
+	}else {
+		return keyToken;
+	}
+};
+
 // 工具，生成可解析语法秒数文本
 function generateSyntaxDescriptionTexts() {
 	// 创建可用 symbol type 查找字符串的 map, 目前 key 直接为 TOKEN_TYPES 的 key
@@ -1269,7 +1279,45 @@ const not_end_symbols = {
 			END_SYMBOLS["..."],
 			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
-		]
+		],
+		// 解构非标识符属性名，必须初始化
+		[
+			END_SYMBOLS["["],
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+			END_SYMBOLS["]"],
+			END_SYMBOLS[":"],
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
+			{ type: NOT_END_SYMBOL, value: "ObjectPatternOptionalDefaultValue" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
+			END_SYMBOLS[":"],
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
+			{ type: NOT_END_SYMBOL, value: "ObjectPatternOptionalDefaultValue" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
+			END_SYMBOLS[":"],
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
+			{ type: NOT_END_SYMBOL, value: "ObjectPatternOptionalDefaultValue" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
+			END_SYMBOLS[":"],
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
+			{ type: NOT_END_SYMBOL, value: "ObjectPatternOptionalDefaultValue" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NULL_LITERAL],
+			END_SYMBOLS[":"],
+			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
+			{ type: NOT_END_SYMBOL, value: "ObjectPatternOptionalDefaultValue" },
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
 	],
 	// 解构重命名中可以包含另一个解构
 	ObjectPatternOptionalRename: [
@@ -2118,12 +2166,32 @@ const transformers = (() => {
 
 	// 标准化转换计算表达式
 	const normalizeTransformers = {
-		"()": ({ left, right }) => ({
-			type: "CallExpression",
-			callee: left,
-			arguments: right || [],
-			optional: false,
-		}),
+		"()": ({ left, right }) => {
+			// ImportExpresion
+			if(left.value === "import") {
+				return {
+					type: "ImportExpression",
+					source: right[0],
+				}
+			}
+			// super
+			if(left.value === "super") {
+				return {
+					type: "CallExpression",
+					callee: {
+						type: "Super",
+					},
+					arguments: right || [],
+					optional: false,
+				}
+			}
+			return {
+				type: "CallExpression",
+				callee: left,
+				arguments: right || [],
+				optional: false,
+			}
+		},
 		"?.()": ({ left, right }) => ({
 			type: "CallExpression",
 			callee: left,
@@ -2447,8 +2515,9 @@ const transformers = (() => {
 			return {
 				type: "Property",
 				kind: "init",
-				key: input[0],
 				method: input[1].method,
+				computed: false,
+				key: input[0],
 				value: input[1].value,
 			}
 		}],
@@ -2457,39 +2526,42 @@ const transformers = (() => {
 			return {
 				type: "Property",
 				kind: "init",
-				key: input[1],
 				method: input[3].method,
-				value: input[3].value,
 				computed: true,
+				key: input[1],
+				value: input[3].value,
 			}
 		}],
 		[ObjectProperty[3], input => ({
 			type: "Property",
 			kind: "init",
-			key: input[0],
 			method: input[1].method,
+			computed: false,
+			key: input[0],
 			value: input[1].value,
 		})],
 		[ObjectProperty[4], input => ({
 			type: "Property",
 			kind: "init",
+			method: input[1].method,
+			computed: false,
 			// boolean 作为 属性名
 			key: {
 				type: "Identifier",
 				name: input[0].raw,
 			},
-			method: input[1].method,
 			value: input[1].value,
 		})],
 		[ObjectProperty[5], input => ({
 			type: "Property",
 			kind: "init",
+			method: input[1].method,
+			computed: false,
 			// null 作为 属性名
 			key: {
 				type: "Identifier",
 				name: input[0].raw,
 			},
-			method: input[1].method,
 			value: input[1].value,
 		})],
 		// 展开操作符
@@ -2667,7 +2739,45 @@ const transformers = (() => {
 			}
 		}],
 		[TermWithOptionalTagTemplate_[0], leftComputeHandler],
-		[Term17_[0], singleCalculateSymbolHandler],
+		[Term17_[0], input=> {
+			// 先处理一次
+			let result = singleCalculateSymbolHandler(input);
+			let isChainExpression = false;
+			let current = result;
+			// 遍历，根据需要是否在根部插入 ChainExpression
+			while(current && (!isChainExpression)) {
+				const handler = ({
+					"MemberExpression": ()=> {
+						if(current.optional) {
+							isChainExpression = true;
+							return;
+						}
+						current = current.object;
+					},
+					"CallExpression": ()=> {
+						if(current.optional) {
+							isChainExpression = true;
+							return;
+						}
+						current = current.callee;
+					},
+				})[current.type];
+				// 如果 type 不对也中断，代表以及离开了这两种表达式的更细的范围了
+				if(handler) {
+					handler();
+				}else {
+					break;
+				}
+			}
+			// 如果具有 ?. 则将 ChainExpresison 插入根部
+			if(isChainExpression) {
+				return {
+					type: "ChainExpression",
+					expression: result,
+				}
+			}
+			return result;
+		}],
 		// 计算属性名, 这里暂时也视为.运算符
 		[Term18[1], input => {
 			const result = [
@@ -2744,15 +2854,6 @@ const transformers = (() => {
 	const validProperyTraversalRelatedTransformers = [
 		// getter setter
 		...(() => {
-			// 如果是字符和数字直接作为key，否则视为标识符
-			const transformKey = keyToken => {
-				// 这三个如果作为 key 视为标识符，其他的直接返回
-				if([false, true, null].includes(keyToken.value)) {
-					return { type: "Identifier", name: String(keyToken.value) };
-				}else {
-					return keyToken;
-				}
-			};
 
 			// 创建 FunctionExpression
 			const createFunctionExpression = (params, body) => {
@@ -3258,6 +3359,8 @@ const transformers = (() => {
 			const result = {
 				type: "Property",
 				key: input[0],
+				kind: "init",
+				method: false,
 			}
 
 			input.slice(1).forEach(item => {
@@ -3293,6 +3396,47 @@ const transformers = (() => {
 			type: "RestElement",
 			argument: input[1],
 		})],
+		...(()=> {
+			// 非标识符对象解构属性处理器, isComputed 是计算属性名标识
+			const createNoIdentifyObjectPatternPropertyTransformer = (isComputed = false)=> {
+				if(isComputed) {
+					return input=> ({
+						type: "Property",
+						key: transformKey(input[1]),
+						// 如果 5 有的话存在解构默认值
+						value: (input?.[5]?.value && input?.[5]?.value !== ",") ? {
+							type: "AssignmentPattern",
+							left: input[4],
+							right: input[5].value,
+						} : input[4],
+						kind: "init",
+						method: false,
+						computed: true,
+					});
+				}else {
+					return input=> ({
+						type: "Property",
+						key: transformKey(input[0]),
+						// 如果 5 有的话存在解构默认值
+						value: (input?.[3]?.value && input?.[3]?.value !== ",") ? {
+							type: "AssignmentPattern",
+							left: input[2],
+							right: input[3].value,
+						} : input[2],
+						kind: "init",
+						method: false,
+						computed: false,
+					});
+				}
+			}
+			return [
+				[ObjectPatternItem[2], createNoIdentifyObjectPatternPropertyTransformer(true)],
+				[ObjectPatternItem[3], createNoIdentifyObjectPatternPropertyTransformer(false)],
+				[ObjectPatternItem[4], createNoIdentifyObjectPatternPropertyTransformer(false)],
+				[ObjectPatternItem[5], createNoIdentifyObjectPatternPropertyTransformer(false)],
+				[ObjectPatternItem[6], createNoIdentifyObjectPatternPropertyTransformer(false)],
+			]
+		})(),
 		[ObjectPattern[0], input => ({
 			type: "ObjectPattern",
 			properties: input.slice(1, input.length - 1),

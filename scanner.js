@@ -267,8 +267,8 @@ function scanne(code) {
 			if (char === startSymbol) {
 				break;
 			}
-			// 转义字符处理
-			if (char === "\\") {
+			// 转义字符处理, 如果 startSymbol 是 /, 则是正则表达式，为正则主体的一部分，不是转义，故不处理
+			if (char === "\\" && startSymbol !== "/") {
 				raw += char;
 				// 跳过
 				cursor += 1;
