@@ -1878,7 +1878,7 @@ const not_end_symbols = {
 	// 导入标识是可选的
 	ImportIdentify: [
 		[
-			{ type: NOT_END_SYMBOL, value: "ImportSpecifers" },
+			{ type: NOT_END_SYMBOL, value: "ImportSpecifiers" },
 			END_SYMBOLS.FROM,
 		],
 		[
@@ -1886,7 +1886,7 @@ const not_end_symbols = {
 		],
 	],
 	// 导入描述符
-	ImportSpecifers: [
+	ImportSpecifiers: [
 		// default import
 		[
 			{ type: NOT_END_SYMBOL, value: "ImportDefault" },
@@ -1910,7 +1910,7 @@ const not_end_symbols = {
 	// 导入花括号部分（可选）
 	Imports: [
 		[
-			{ type: NOT_END_SYMBOL, value: "ModuleSpecifers" },
+			{ type: NOT_END_SYMBOL, value: "ModuleSpecifiers" },
 		],
 		[
 			END_SYMBOLS.NONE,
@@ -1922,7 +1922,7 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Term1_" },
 		],
 		[
-			{ type: NOT_END_SYMBOL, value: "ModuleSpecifers" },
+			{ type: NOT_END_SYMBOL, value: "ModuleSpecifiers" },
 			{ type: NOT_END_SYMBOL, value: "ExportRedirect" },
 		],
 		[
@@ -1961,31 +1961,31 @@ const not_end_symbols = {
 		],
 	],
 	// 模块标识符（花括号内内容）
-	ModuleSpecifers: [
+	ModuleSpecifiers: [
 		[
 			END_SYMBOLS.START_BLOCK,
-			{ type: NOT_END_SYMBOL, value: "ModuleSpecifersItems" },
+			{ type: NOT_END_SYMBOL, value: "ModuleSpecifiersItems" },
 			END_SYMBOLS.END_BLOCK,
 		],
 	],
-	ModuleSpecifersItems: [
+	ModuleSpecifiersItems: [
 		[
-			{ type: NOT_END_SYMBOL, value: "ModuleSpecifersItem" },
-			{ type: NOT_END_SYMBOL, value: "ModuleSpecifersItems" },
+			{ type: NOT_END_SYMBOL, value: "ModuleSpecifiersItem" },
+			{ type: NOT_END_SYMBOL, value: "ModuleSpecifiersItems" },
 		],
 		[
 			END_SYMBOLS.NONE,
 		],
 	],
-	ModuleSpecifersItem: [
+	ModuleSpecifiersItem: [
 		[
 			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
-			{ type: NOT_END_SYMBOL, value: "ModuleOptionalAlias" },
+			{ type: NOT_END_SYMBOL, value: "OptionalModuleAlias" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 	],
 	// 可选的模块别名
-	ModuleOptionalAlias: [
+	OptionalModuleAlias: [
 		[
 			END_SYMBOLS.AS,
 			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
@@ -2050,14 +2050,14 @@ const transformers = (() => {
 		LabeledStatement,
 
 		ImportIdentify,
-		ImportSpecifers,
+		ImportSpecifiers,
 		ImportDefault,
 		ExportContent,
 		OptionalExportAllExported,
 		ExportRedirect,
-		ModuleSpecifers,
-		ModuleSpecifersItem,
-		ModuleOptionalAlias,
+		ModuleSpecifiers,
+		ModuleSpecifiersItem,
+		OptionalModuleAlias,
 		ClassItemContent,
 		ClassItemNormalMethodOrPropertyContent,
 		ClassItemStartInGet,
@@ -2373,12 +2373,13 @@ const transformers = (() => {
 						argument: result,
 					};
 				} else {
-					result = {
+					// 标准化转换，因为这里 operator.value 可能是 new，如果是的话就需要转换
+					result = normalizeComputeExpression({
 						type: ["++", "--"].includes(operator.value) ? "UpdateExpression" : "UnaryExpression",
 						prefix: true,
 						operator,
 						argument: result,
-					}
+					});
 				}
 			}
 
@@ -2560,8 +2561,8 @@ const transformers = (() => {
 				value: {
 					raw: "",
 					cooked: "",
-					tail: false,
 				},
+				tail: false,
 			});
 
 			// 上一个是否是表达式，如果是的话，下面需要在两个相连的表达式之间插入一个空模板字符
@@ -3505,23 +3506,23 @@ const transformers = (() => {
 				}
 			}
 		}],
-		[ModuleSpecifers[0], input => (input.slice(1, input.length - 1))],
+		[ModuleSpecifiers[0], input => (input.slice(1, input.length - 1))],
 		// 别名直接返回标识符
-		[ModuleOptionalAlias[0], input => (input[1])],
-		[ModuleSpecifersItem[0], input => {
-			// 如果索引1有效且是逗号，则不具有as别名
-			if (input[1]?.value === ",") {
-				return {
-					type: "ModulaSpecifer",
-					name: input[0],
-					local: input[0],
-				}
-			} else {
+		[OptionalModuleAlias[0], input => (input[1])],
+		[ModuleSpecifiersItem[0], input => {
+			// 如果索引1有效且不是逗号，则有as别名
+			if (input[1] && input[1]?.value !== ",") {
 				// 具有 as 别名
 				return {
-					type: "ModulaSpecifer",
+					type: "ModuleSpecifer",
 					name: input[0],
 					local: input[1],
+				}
+			} else {
+				return {
+					type: "ModuleSpecifer",
+					name: input[0],
+					local: input[0],
 				}
 			}
 		}],
@@ -3586,13 +3587,13 @@ const transformers = (() => {
 			if (input[1].type === "Literal") {
 				return {
 					type: "ImportDeclaration",
-					specifers: [],
+					specifiers: [],
 					source: input[1],
 				}
 			} else {
 				return {
 					type: "ImportDeclaration",
-					specifers: input[1],
+					specifiers: input[1],
 					source: input[2],
 				}
 			}
@@ -3656,7 +3657,7 @@ const transformers = (() => {
 
 		[ImportIdentify[0], input => (input[0])],
 		[ImportDefault[0], input => (input[0])],
-		[ImportSpecifers[0], input => {
+		[ImportSpecifiers[0], input => {
 			// 索引1的节点
 			const oneIndex = input[1];
 
@@ -3699,9 +3700,16 @@ const transformers = (() => {
 				];
 			}
 		}],
-		[ImportSpecifers[1], input => (input[0])],
+		[ImportSpecifiers[1], input => {
+			input[0].forEach(specifer => {
+				specifer.type = "ImportSpecifier";
+				specifer.imported = specifer.name;
+				delete specifer.name;
+			});
+			return input[0];
+		}],
 		// 导入命名空间的形式
-		[ImportSpecifers[2], input => ([
+		[ImportSpecifiers[2], input => ([
 			{
 				type: "ImportNamespaceSpecifier",
 				local: input[2],
@@ -3726,7 +3734,7 @@ const transformers = (() => {
 			});
 			return {
 				type: "ExportNamedDeclaration",
-				specifers: input[0],
+				specifiers: input[0],
 				source: input[1],
 			};
 		}],
@@ -3772,7 +3780,7 @@ Object.entries(not_end_symbols).forEach(([key, productions]) => {
 // 需要最后解析后拍平的产生式
 const flatProductions = [
 	not_end_symbols.Statements[0],
-	not_end_symbols.ModuleSpecifersItems[0],
+	not_end_symbols.ModuleSpecifiersItems[0],
 	not_end_symbols.FunctionParams[0],
 	not_end_symbols.ObjectContent[0],
 	not_end_symbols.ArrayContent[0],
