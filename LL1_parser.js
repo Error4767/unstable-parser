@@ -1596,10 +1596,31 @@ const not_end_symbols = {
 	],
 	ClassItem: [
 		[
-			{ type: NOT_END_SYMBOL, value: "OptionalStatic" },
 			{ type: NOT_END_SYMBOL, value: "ClassItemContent" },
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
-		]
+		],
+		[
+			END_SYMBOLS.STATIC,
+			{ type: NOT_END_SYMBOL, value: "ClassItemStartInStatic" },
+			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+		],
+	],
+	ClassItemStartInStatic: [
+		[
+			{ type: NOT_END_SYMBOL, value: "ClassItemContent" },
+		],
+		// 一般属性
+		[
+			END_SYMBOLS["="],
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+		],
+		// 方法简写
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
 	],
 	ClassItemContent: [
 		[
@@ -1999,6 +2020,7 @@ const transformers = (() => {
 		ClassItemStartInGet,
 		ClassItemStartInSet,
 		ClassItemStartInAsync,
+		ClassItemStartInStatic,
 		ClassItem,
 		ClassContent,
 		ClassBody,
@@ -2665,7 +2687,14 @@ const transformers = (() => {
 		// getter setter
 		...(() => {
 			// 如果是字符和数字直接作为key，否则视为标识符
-			const transformKey = keyToken => ((typeof keyToken.value === "number" || typeof keyToken.value === "string") ? keyToken : { type: "Identifier", name: String(keyToken.value) });
+			const transformKey = keyToken => {
+				// 这三个如果作为 key 视为标识符，其他的直接返回
+				if([false, true, null].includes(keyToken.value)) {
+					return { type: "Identifier", name: String(keyToken.value) };
+				}else {
+					return keyToken;
+				}
+			};
 
 			// 创建 FunctionExpression
 			const createFunctionExpression = (params, body) => {
@@ -2968,24 +2997,20 @@ const transformers = (() => {
 						}
 					}];
 				}),
-				[ClassItem[0], input=> {
-					// 如果是 static
-					if(input[0]?.value === "static") {
-						// 如果是 StaticBlock 不做处理直接返回
-						if(input[1].type === "StaticBlock") {
-							return input[1];
-						}else {
-							// 否则加上 static: true
-							return {
-								...input[1],
-								static: true,
-							}
-						}
-					}else {
-						// 不是则直接返回, 因为默认是 false，无需处理
-						return input[0];
-					}
-				}],
+				[ClassItem[0], input=> input[0]],
+				[ClassItem[1], input=> input[1]],
+				[ClassItemStartInStatic[0], ([classItem])=> (classItem.type === "StaticBlock" ? classItem : { ...classItem, static: true})],
+				[ClassItemStartInStatic[1], input=> ({
+					type: "PropertyDefinition",
+					static: false,
+					computed: false,
+					key: {
+						type: "Identifier",
+						name: "static",
+					},
+					value: input[1],
+				})],
+				[ClassItemStartInStatic[2], createClassFunctionContentTransformer("static")],
 				[ClassBody[0], input=> ({
 					type: "ClassBody",
 					body: input.slice(1, input.length - 1),
