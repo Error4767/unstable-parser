@@ -2579,8 +2579,8 @@ const transformers = (() => {
 						value: {
 							raw: item.raw,
 							cooked: item.value,
-							tail: false,
 						},
+						tail: false,
 					});
 					preIsExpression = false;
 				} else {
@@ -3583,7 +3583,7 @@ const transformers = (() => {
 		[Statement[2], input => input[0]],
 		// 导入声明
 		[Statement[3], input => {
-			if (input[1].type === TOKEN_TYPES.STRING_LITERAL) {
+			if (input[1].type === "Literal") {
 				return {
 					type: "ImportDeclaration",
 					specifers: [],
