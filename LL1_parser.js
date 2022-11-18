@@ -1018,6 +1018,10 @@ const not_end_symbols = {
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Block" },
 		],
+		// 可为空，简写属性
+		[
+			END_SYMBOLS.NONE
+		],
 	],
 	// 属性名从 set 开始，可能是异步函数，或者就是一般的属性名
 	ObjectPropertyStartInSet: [
@@ -1036,6 +1040,10 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+		// 可为空，简写属性
+		[
+			END_SYMBOLS.NONE
 		],
 	],
 	// 属性名从 async 开始，可能是异步函数，或者就是一般的属性名
@@ -1056,6 +1064,10 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+		// 可为空，简写属性
+		[
+			END_SYMBOLS.NONE
 		],
 	],
 	// 属性函数主体，不含 async 和 *
@@ -1633,6 +1645,10 @@ const not_end_symbols = {
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Block" },
 		],
+		// 可为空，简写属性
+		[
+			END_SYMBOLS.NONE
+		],
 	],
 	ClassItemContent: [
 		[
@@ -1684,6 +1700,10 @@ const not_end_symbols = {
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Block" },
 		],
+		// 可为空，简写属性
+		[
+			END_SYMBOLS.NONE
+		],
 	],
 	// 类项从 set 开始，可能是异步函数，或者就是一般的属性名
 	ClassItemStartInSet: [
@@ -1702,6 +1722,10 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+		// 可为空，简写属性
+		[
+			END_SYMBOLS.NONE
 		],
 	],
 	// 类项从 async 开始，可能是异步函数，或者就是一般的属性名
@@ -1722,6 +1746,10 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Block" },
+		],
+		// 可为空，简写属性
+		[
+			END_SYMBOLS.NONE
 		],
 	],
 	// 右侧内容部分，可以为类方法或类属性定义
@@ -2751,14 +2779,36 @@ const transformers = (() => {
 				}
 			};
 			// set, get 开头的内容处理, isMethod 代表是否是 setter, getter
-			const objectStartInSetOrGetTransformer = ([{ value: kind }, { isMethod, isComputed, key, value }]) => ({
-				type: "Property",
-				kind: isMethod ? kind : "init",
-				method: isMethod ? true : false,
-				computed: isComputed ? true : false,
-				key,
-				value,
-			});
+			const objectStartInSetOrGetTransformer = ([{ value: kind }, v]) => {
+				// 如果存在值，正常处理
+				if(v && v?.value !== ",") {
+					const { isMethod, isComputed, key, value } = v;
+					return {
+						type: "Property",
+						kind: isMethod ? kind : "init",
+						method: isMethod ? true : false,
+						computed: isComputed ? true : false,
+						key,
+						value,
+					}
+				}else {
+					// 不存在，则是 set 或 get 的简写属性
+					return {
+						type: "Property",
+						kind: "init",
+						method: false,
+						computed: false,
+						key: {
+							type: "Identifier",
+							name: kind,
+						},
+						value: {
+							type: "Identifier",
+							name: kind,
+						},
+					};
+				}
+			};
 
 			// 对象方法 async generator 的函数主体部分
 			// 如果是一般的单个字面量作为名字，那么直接取
@@ -2781,14 +2831,30 @@ const transformers = (() => {
 			});
 
 			// class 的 setter 和 getter 转换，仅和 object 的 type 不同, isMethod 仍代表是否是 setter, getter
-			const classItemStartInSetOrGetTransformer = ([{ value: kind }, { isProperty, isMethod, isComputed, key, value }]) => ({
-				type: isProperty ? "PropertyDefinition" : "MethodDefinition",
-				static: false,
-				kind: isMethod ? kind : "method",
-				computed: isComputed ? true : false,
-				key,
-				value,
-			});
+			const classItemStartInSetOrGetTransformer = ([{ value: kind }, v]) => {
+				if(v) {
+					const { isProperty, isMethod, isComputed, key, value } = v;
+					return {
+						type: isProperty ? "PropertyDefinition" : "MethodDefinition",
+						static: false,
+						kind: isMethod ? kind : "method",
+						computed: isComputed ? true : false,
+						key,
+						value,
+					}
+				}else {
+					return {
+						type: "PropertyDefinition",
+						computed: false,
+						static: false,
+						key: {
+							type: "Identifier",
+							name: kind,
+						},
+						value: null,
+					};
+				}
+			};
 			
 			return [
 				// object property setter, getter
@@ -2859,7 +2925,27 @@ const transformers = (() => {
 					value: input[1],
 				})],
 				[ObjectPropertyStartInAsync[2], createObjectFunctionContentTransformer("async")],
-				[ObjectProperty[9], input=> (input[1])],
+				[ObjectProperty[9], input=> {
+					// 如果有值则直接返回，没有的话则是第四种形态，简写属性
+					if(input[1] && input[1]?.value !== ",") {
+						return input[1];
+					}else {
+						return {
+							type: "Property",
+							kind: "init",
+							method: false,
+							computed: false,
+							key: {
+								type: "Identifier",
+								name: "async",
+							},
+							value: {
+								type: "Identifier",
+								name: "async",
+							},
+						};
+					}
+				}],
 				// 生成器函数
 				[ObjectProperty[10], input => ({
 					type: "Property",
@@ -2941,7 +3027,23 @@ const transformers = (() => {
 				})],
 				[ClassItemStartInAsync[2], createClassFunctionContentTransformer("async")],
 				// 异步函数
-				[ClassItemContent[2], input=> (input[1])],
+				[ClassItemContent[2], input=> {
+					// 如果有值则直接返回，没有的话则就没有初始化，因此无value
+					if(input[1] && input[1]?.value !== ",") {
+						return input[1];
+					}else {
+						return {
+							type: "PropertyDefinition",
+							computed: false,
+							static: false,
+							key: {
+								type: "Identifier",
+								name: "async",
+							},
+							value: null,
+						};
+					}
+				}],
 				// 生成器函数
 				[ClassItemContent[3], ([,{ isComputed, key, value }])=> ({
 					type: "MethodDefinition",
@@ -3012,7 +3114,23 @@ const transformers = (() => {
 					}];
 				}),
 				[ClassItem[0], input=> input[0]],
-				[ClassItem[1], input=> input[1]],
+				[ClassItem[1], input=> {
+					// 如果有值则直接返回，没有的话则就没有初始化，因此无 value
+					if(input[1] && input[1]?.value !== ";") {
+						return input[1];
+					}else {
+						return {
+							type: "PropertyDefinition",
+							computed: false,
+							static: false,
+							key: {
+								type: "Identifier",
+								name: "static",
+							},
+							value: null,
+						};
+					}
+				}],
 				[ClassItemStartInStatic[0], ([classItem])=> (classItem.type === "StaticBlock" ? classItem : { ...classItem, static: true})],
 				[ClassItemStartInStatic[1], input=> ({
 					type: "PropertyDefinition",
