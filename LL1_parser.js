@@ -2121,13 +2121,13 @@ const transformers = (() => {
 		"()": ({ left, right }) => ({
 			type: "CallExpression",
 			callee: left,
-			arguments: right,
+			arguments: right || [],
 			optional: false,
 		}),
 		"?.()": ({ left, right }) => ({
 			type: "CallExpression",
 			callee: left,
-			arguments: right,
+			arguments: right || [],
 			optional: true,
 		}),
 		".": ({ left, right, operator: { computed = false } }) => {
@@ -2200,6 +2200,7 @@ const transformers = (() => {
 			}
 			if (endCallExpression) {
 				endCallExpression.type = "NewExpression";
+				delete endCallExpression.optional;
 				return argument;
 			} else {
 				if (argument.highPriority) {
@@ -2211,6 +2212,7 @@ const transformers = (() => {
 				}
 				if (argument.type === "CallExpression") {
 					argument.type = "NewExpression";
+					delete argument.optional;
 					return argument;
 				} else {
 					return {
