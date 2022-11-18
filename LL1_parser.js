@@ -811,6 +811,18 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Term18" },
 		],
 	],
+	// 可选函数调用参数
+	OptionalFunctionCallParams: [
+		[
+			{ type: NOT_END_SYMBOL, value: "Term1_" },
+			// 末尾可以带逗号
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+			{ type: NOT_END_SYMBOL, value: "OptionalFunctionCallParams" },
+		],
+		[
+			END_SYMBOLS.NONE,
+		],
+	],
 	Term18: [
 		[
 			END_SYMBOLS["."],
@@ -831,7 +843,7 @@ const not_end_symbols = {
 		],
 		[
 			END_SYMBOLS.START_BRACKET,
-			{ type: NOT_END_SYMBOL, value: "OptionalExpression" },
+			{ type: NOT_END_SYMBOL, value: "OptionalFunctionCallParams" },
 			END_SYMBOLS.END_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Term18" },
 		],
@@ -850,7 +862,7 @@ const not_end_symbols = {
 		// 可以是函数调用
 		[
 			END_SYMBOLS.START_BRACKET,
-			{ type: NOT_END_SYMBOL, value: "OptionalExpression" },
+			{ type: NOT_END_SYMBOL, value: "OptionalFunctionCallParams" },
 			END_SYMBOLS.END_BRACKET,
 		]
 	],
@@ -2070,6 +2082,7 @@ const transformers = (() => {
 		Term3,
 		Term18,
 		OptionalChainingAttributeName,
+		OptionalFunctionCallParams,
 	} = not_end_symbols;
 
 	// 标准化转换计算表达式
@@ -2077,13 +2090,13 @@ const transformers = (() => {
 		"()": ({ left, right }) => ({
 			type: "CallExpression",
 			callee: left,
-			arguments: right && (right.type === "SequenceExpression" ? [...right.expressions] : [right]),
+			arguments: right,
 			optional: false,
 		}),
 		"?.()": ({ left, right }) => ({
 			type: "CallExpression",
 			callee: left,
-			arguments: right && (right.type === "SequenceExpression" ? [...right.expressions] : [right]),
+			arguments: right,
 			optional: true,
 		}),
 		".": ({ left, right, operator: { computed = false } }) => {
@@ -2669,6 +2682,7 @@ const transformers = (() => {
 			input[3] && result.push(input[3]);
 			return result;
 		}],
+		[OptionalFunctionCallParams[0], input=> input.flat(Number.MAX_SAFE_INTEGER).filter(item=> item?.value !== ",")],
 		// 可选链计算属性名
 		[OptionalChainingAttributeName[1], input => ({
 			type: "OptionalComputeAttributeExpression",
@@ -3273,7 +3287,7 @@ const transformers = (() => {
 				body: input[input.length - 1],
 			};
 			const firstDelimterIndex = input.findIndex(v => v.value === ";");
-			const secondDelimterIndex = input.findLastIndex(v => v.value === ";");
+			const secondDelimterIndex = input.slice(firstDelimterIndex + 1).findIndex(v => v.value === ";");
 
 			// 如果第一个分号在索引2处，则表示有表达式
 			if (firstDelimterIndex === 2) {
@@ -3881,7 +3895,11 @@ function parse(input) {
 		}
 	}
 	
-	const production = analyzeTable.Program.get(token.type) || analyzeTable.Program.get(token.value);
+	let production = analyzeTable.Program.get(token.type) || analyzeTable.Program.get(token.value);
+
+	if(!production && token.type === TOKEN_TYPES.KEYWORD) {
+		production = analyzeTable.Program.get(TOKEN_TYPES.IDENTIFY);
+	}
 
 	const matchProd = (production, container) => production.every((sym, index) => {
 		if (!container.children) {
@@ -3969,7 +3987,7 @@ function parse(input) {
 			}
 
 			// 如果是 KEYWORD 则可能是 Identify, 即关键字作为标识符,使用标识符查找产生式
-			if (!p && token.type === TOKEN_TYPES.KEYWORD && name !== "Statements" /* 语句中不可存在关键字(这样也对于switch中case不做处理) */) {
+			if (!p && token.type === TOKEN_TYPES.KEYWORD) {
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
 			// new.target 标记
