@@ -314,8 +314,8 @@ const validPropertyNames = [
 
 // 对象的key为非终结符，值为可用的产生式数组
 const not_end_symbols = {
-	// 箭头函数内容部分
-	ArrowFunctionContent: [
+	// 箭头函数内容部分（可选的）
+	OptionalArrowFunctionContent: [
 		[
 			END_SYMBOLS["=>"],
 			{ type: NOT_END_SYMBOL, value: "ArrowFunctionBody" },
@@ -383,16 +383,35 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "OptionalExpression" },
 			END_SYMBOLS.END_BRACKET,
 			// 箭头函数可以跟在括号后
-			{ type: NOT_END_SYMBOL, value: "ArrowFunctionContent" },
+			{ type: NOT_END_SYMBOL, value: "OptionalArrowFunctionContent" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
 		],
 		[
-			{ type: NOT_END_SYMBOL, value: "AsyncFunctionExpression" },
+			END_SYMBOLS.ASYNC,
+			{ type: NOT_END_SYMBOL, value: "AsyncFunctionExpressionContent" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "ClassExpression" },
+		],
+	],
+	// 异步函数表达式主体
+	AsyncFunctionExpressionContent: [
+		[
+			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
+		],
+		[
+			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			END_SYMBOLS["=>"],
+			{ type: NOT_END_SYMBOL, value: "ArrowFunctionBody" },
+		],
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			END_SYMBOLS["=>"],
+			{ type: NOT_END_SYMBOL, value: "ArrowFunctionBody" },
 		],
 	],
 	Term1: [
@@ -1143,7 +1162,7 @@ const not_end_symbols = {
 		[
 			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
 			// 箭头函数也可以跟在不带括号的单个标识符后
-			{ type: NOT_END_SYMBOL, value: "ArrowFunctionContent" },
+			{ type: NOT_END_SYMBOL, value: "OptionalArrowFunctionContent" },
 		],
 		[
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
@@ -1406,6 +1425,34 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Block" },
 		]
 	],
+	// 异步函数语句
+	AsyncFunctionStatement: [
+		[
+			END_SYMBOLS.ASYNC,
+			{ type: NOT_END_SYMBOL, value: "AsyncFunctionStatementContent" },
+		]
+	],
+	// 异步函数语句主体
+	AsyncFunctionStatementContent: [
+		[
+			{ type: NOT_END_SYMBOL, value: "FunctionDeclaration" },
+		],
+		// 箭头函数均为表达式，所以最后一个分号是表达式的结尾，不解析为额外的 EmptyStatement
+		[
+			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			END_SYMBOLS["=>"],
+			{ type: NOT_END_SYMBOL, value: "ArrowFunctionBody" },
+			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+		],
+		[
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			END_SYMBOLS["=>"],
+			{ type: NOT_END_SYMBOL, value: "ArrowFunctionBody" },
+			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+		],
+	],
 	FunctionParams: [
 		[
 			{ type: NOT_END_SYMBOL, value: "FunctionParam" },
@@ -1427,30 +1474,6 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 		[END_SYMBOLS.NONE],
-	],
-	// 异步关键字
-	AsyncFunctionExpression: [
-		[
-			END_SYMBOLS.ASYNC,
-			{ type: NOT_END_SYMBOL, value: "AsyncFunctionExpressionContent" },
-		],
-		[END_SYMBOLS.NONE],
-	],
-	// 异步函数体
-	AsyncFunctionExpressionContent: [
-		[
-			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
-		],
-		[
-			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
-			{ type: NOT_END_SYMBOL, value: "ArrowFunctionContent" },
-		],
-		[
-			END_SYMBOLS.START_BRACKET,
-			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
-			END_SYMBOLS.END_BRACKET,
-			{ type: NOT_END_SYMBOL, value: "ArrowFunctionContent" },
-		],
 	],
 	// if
 	If: [
@@ -1934,6 +1957,9 @@ const not_end_symbols = {
 		[
 			{ type: NOT_END_SYMBOL, value: "ClassDeclaration" },
 		],
+		[
+			{ type: NOT_END_SYMBOL, value: "AsyncFunctionStatement" },
+		]
 	],
 	// 标签语句
 	LabeledStatement: [
@@ -2094,8 +2120,8 @@ const transformers = (() => {
 		FunctionExpression,
 		FunctionDeclaration,
 		FunctionParam,
-		AsyncFunctionExpression,
-		AsyncFunctionExpressionContent,
+		AsyncFunctionStatement,
+		AsyncFunctionStatementContent,
 
 		If,
 		Else,
@@ -2157,7 +2183,7 @@ const transformers = (() => {
 		ObjectPropertyStartInSet,
 
 		ArrayItem,
-		ArrowFunctionContent,
+		OptionalArrowFunctionContent,
 
 		Literal,
 
@@ -2166,6 +2192,7 @@ const transformers = (() => {
 
 		Expression,
 		Expr,
+		AsyncFunctionExpressionContent,
 		Term1_,
 		Term2_,
 		Term3_,
@@ -2618,7 +2645,7 @@ const transformers = (() => {
 				expressions,
 			};
 		}],
-		[ArrowFunctionContent[0], input => input[1]],
+		[OptionalArrowFunctionContent[0], input => input[1]],
 		// 可能是括号内的表达式，也可能是带括号的箭头函数
 		[Expr[1], input => {
 			if (input?.[input.length - 1].value === ")") {
@@ -2632,16 +2659,35 @@ const transformers = (() => {
 				// 箭头函数特殊处理
 				return {
 					type: "ArrowFunctionExpression",
+					async: false,
 					params: input.slice(1, input.length - 2),
 					body: input[input.length - 1],
 				}
 			}
 		}],
+		[Expr[3], input=> ({
+			...input[1],
+			"async": true,
+		})],
+		// 无括号异步箭头函数
+		[AsyncFunctionExpressionContent[1], input => ({
+			type: "ArrowFunctionExpression",
+			params: input[0],
+			body: input[2],
+		})],
+		// 带括号异步箭头函数
+		[AsyncFunctionExpressionContent[2], input => ({
+			type: "ArrowFunctionExpression",
+			// 切出参数
+			params: input.slice(1, input.length - 3),
+			body: input[input.length - 1],
+		})],
 		// 可能是标识符，也可能是不带括号的箭头函数
 		[Literal[0], input => {
 			if (input[1]) {
 				return {
 					type: "ArrowFunctionExpression",
+					async: false,
 					params: [input[0]],
 					body: input[1],
 				}
@@ -3614,6 +3660,44 @@ const transformers = (() => {
 			result.params = input.slice(bracketStartIndex + 1, input.length - 2);
 			return result;
 		}],
+		[AsyncFunctionStatement[0], input => (input[1])],
+		[AsyncFunctionStatementContent[0], ([fn])=> ({
+			...fn,
+			"async": true,
+		})],
+		// 无括号异步箭头函数
+		[AsyncFunctionStatementContent[1], input => ({
+			type: "ExpressionStatement",
+			expression: {
+				type: "ArrowFunctionExpression",
+				"async": true,
+				params: input[0],
+				body: input[2],
+			},
+		})],
+		// 带括号异步箭头函数
+		[AsyncFunctionStatementContent[2], input => {
+			let body, params;
+			// 检测最后一个是否是可选分号，在截取参数和主体
+			if(input[input.length - 1]?.value === ";") {
+				params = input.slice(1, input.length - 4);
+				body = input[input.length - 2];
+			}else {
+				params = input.slice(1, input.length - 3);
+				body = input[input.length - 1];
+			}
+
+			// 箭头函数始终是一个表达式，因此包装 ExpressionStatement
+			return {
+				type: "ExpressionStatement",
+				expression: {
+					type: "ArrowFunctionExpression",
+					"async": true,
+					params,
+					body,
+				},
+			}
+		}],
 		[FunctionParam[0], input => {
 			// 如果索引1值为空, 或者直接没有索引1，即没有默认值
 			if (input?.[1]?.value === "," || !(input?.[1])) {
@@ -3631,37 +3715,6 @@ const transformers = (() => {
 			type: "RestElement",
 			argument: input[1],
 		})],
-		[AsyncFunctionExpression[0], input => ({
-			...input[1],
-			"async": true,
-		})],
-		// 无括号异步箭头函数
-		[AsyncFunctionExpressionContent[1], input => {
-			if (input[1]) {
-				return {
-					type: "ArrowFunctionExpression",
-					params: input[0],
-					body: input[1],
-				}
-			}
-			// 如果没有索引1，则箭头函数没有主体，语法错误
-			console.log("syntax error, arrow Function don's has body");
-			throw new Error("parse failed");
-		}],
-		// 带括号异步箭头函数
-		[AsyncFunctionExpressionContent[2], input => {
-			if (input[input.length - 1]?.value !== ")") {
-				return {
-					type: "ArrowFunctionExpression",
-					// 切出参数
-					params: input.slice(1, input.length - 2),
-					body: input[input.length - 1],
-				}
-			}
-			// 如果结尾是)，则箭头函数没有主体，语法错误
-			console.log("syntax error, arrow Function don's has body");
-			throw new Error("parse failed");
-		}],
 		[If[0], input => {
 			const ifStatement = {
 				type: "IfStatement",
@@ -3828,7 +3881,7 @@ const transformers = (() => {
 		})],
 		// 表达式
 		[Statement[0], input => {
-			// 都不是，包装为普通的 ExpressionStatement
+			// ExpressionStatement 包装
 			return {
 				type: "ExpressionStatement",
 				expression: input[0],
@@ -4369,6 +4422,18 @@ function parse(input) {
 					token.production = not_end_symbols.ForOfContent[0];
 					delete token.specialType;
 				}
+			}
+
+			// async 开头非异步函数，则 async 是标识符
+			if(token.value === "async" && (
+				// 后一个没有明确标记箭头函数
+				tokens[tokens.length - 2]?.specialType !== "ArrowFunciton" 
+				// 后一个不是标识符
+				&& tokens[tokens.length - 2]?.type !== TOKEN_TYPES.IDENTIFY
+				// 后一个不是 function 或 *
+				&& !["function", "*"].includes(tokens[tokens.length - 2]?.value)
+			)) {
+				token.type = TOKEN_TYPES.IDENTIFY;
 			}
 
 			const name = sym.value;
