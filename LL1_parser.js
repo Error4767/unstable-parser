@@ -3594,7 +3594,7 @@ const transformers = (() => {
 				body: input[input.length - 1],
 			};
 			const firstDelimterIndex = input.findIndex(v => v.value === ";");
-			const secondDelimterIndex = input.slice(firstDelimterIndex + 1).findIndex(v => v.value === ";");
+			const secondDelimterIndex = input.slice(firstDelimterIndex + 1).findIndex(v => v.value === ";") + (firstDelimterIndex + 1 /* 因为之前的索引从 0 开始，因此需要加 1 */); 
 
 			// 如果第一个分号在索引2处，则表示有表达式
 			if (firstDelimterIndex === 2) {
@@ -3608,6 +3608,7 @@ const transformers = (() => {
 			if (input[secondDelimterIndex + 1].value !== ")") {
 				result.update = input[secondDelimterIndex + 1];
 			}
+			
 			return result;
 		}],
 		[ForInContent[0], input => {
