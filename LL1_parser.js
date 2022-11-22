@@ -2619,6 +2619,11 @@ const transformers = (() => {
 					body: input[1],
 				}
 			} else {
+				if(input[0]?.value === "this") {
+					return {
+						type: "ThisExpression",
+					}
+				}
 				return input[0];
 			}
 		}],
@@ -2870,7 +2875,7 @@ const transformers = (() => {
 			const createObjectFunctionContentTransformer = (name)=> input=> ({
 				type: "Property",
 				kind: "init",
-				method: false,
+				method: true,
 				computed: false,
 				key: {
 					type: "Identifier",
@@ -2897,17 +2902,9 @@ const transformers = (() => {
 			};
 			// set, get 开头的内容处理, isMethod 代表是否是 setter, getter
 			const objectStartInSetOrGetTransformer = ([{ value: kind }, v]) => {
-				// 如果存在值，正常处理
+				// 如果存在有效值，直接返回
 				if(v && v?.value !== ",") {
-					const { isMethod, isComputed, key, value } = v;
-					return {
-						type: "Property",
-						kind: isMethod ? kind : "init",
-						method: isMethod ? true : false,
-						computed: isComputed ? true : false,
-						key,
-						value,
-					}
+					return v;
 				}else {
 					// 不存在，则是 set 或 get 的简写属性
 					return {
@@ -2979,6 +2976,10 @@ const transformers = (() => {
 				...MethodSetterContent.map(production => ([production, getTransformer(production, "setter")])),
 				// 1 是普通属性，需要处理为 { isMethod, isComputed, key, value } 的格式便于给 objectSetOrGetTransformer 继续处理区分
 				[ObjectPropertyStartInGet[1], input=> ({
+					type: "Property",
+					kind: "init",
+					method: false,
+					computed: false,
 					key: {
 						type: "Identifier",
 						name: "get",
@@ -2987,6 +2988,10 @@ const transformers = (() => {
 				})],
 				[ObjectPropertyStartInGet[2], createObjectFunctionContentTransformer("get")],
 				[ObjectPropertyStartInSet[1], input=> ({
+					type: "Property",
+					kind: "init",
+					method: false,
+					computed: false,
 					key: {
 						type: "Identifier",
 						name: "set",
@@ -3176,13 +3181,22 @@ const transformers = (() => {
 				// static block
 				[ClassItemContent[4], input=> ({...input[0], type: "StaticBlock"})],
 				[ClassItemNormalMethodOrPropertyContent[0], input=> {
+					let generator = false;
+					// 参数开始的索引
+					let paramsStartIndex;
 					// 检测是否是生成器
-					let paramsStartIndex = input[0]?.value === "*" ? 2 : 1;
+					if(input[0]?.value === "*") {
+						paramsStartIndex = 2;
+						generator = true;
+					} else {
+						paramsStartIndex = 1;
+					}
+					
 					return {
 						isProperty: false,
 						value: {
 							...createFunctionExpression(input.slice(paramsStartIndex, input.length - 2), input[input.length - 1]),
-							generator: true,
+							generator,
 							async: false,
 						},
 					}
@@ -3235,7 +3249,8 @@ const transformers = (() => {
 						}else {
 							return {
 								type: "MethodDefinition",
-								kind: "method",
+								// constructor 类型为 constructor
+								kind: key?.value === "constructor" ? "constructor" : "method",
 								static: false,
 								computed,
 								key: transformKey(key),
@@ -4285,10 +4300,6 @@ function parse(input) {
 				delete token.production;
 			}
 
-			// 如果是 KEYWORD 则可能是 Identify, 即关键字作为标识符,使用标识符查找产生式
-			if (!p && token.type === TOKEN_TYPES.KEYWORD) {
-				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
-			}
 			// new.target 标记
 			if (token.value === "new" && tokens?.[tokens.length - 2]?.value === ".") {
 				// 设置值为该标记，这样该 new 在 Term17 就会被忽略(否则该 new 会被 Term17 使用，产生冲突问题), 待进入 Expr 之后特殊处理
@@ -4299,10 +4310,16 @@ function parse(input) {
 				// 将该关键字作为 Identify 匹配
 				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
+
 			// LabeledStatement
 			// 如果在第一项，且产生式为 Expression 且下一个 token 是 : 则为 LabeledStatement
 			if(index === 0 && p === not_end_symbols.Statement[0] && tokens?.[tokens.length - 2]?.value === ":") {
 				p = not_end_symbols.LabeledStatement[0];
+			}
+
+			// 如果是 KEYWORD 则可能是 Identify, 即关键字作为标识符, 且不在语句中或者其为几种其他合法的特殊形式
+			if (!p && token.type === TOKEN_TYPES.KEYWORD && (name !== "Statements" || ["get", "set", "async", "static"].includes(token.value))) {
+				p = analyzeTable?.[name]?.get(TOKEN_TYPES.IDENTIFY);
 			}
 
 			// 无法匹配
@@ -4312,9 +4329,10 @@ function parse(input) {
 					// console.log("optional", name, sym, token);
 					// console.log("idsadkl", token, sym, analyzeTable?.[name]);
 					return true;
+				}else {
+					console.log(p, name, token, production, index, sym, analyzeTable?.[name]);
+					throw new Error("parse failed");
 				}
-				console.log(p, name, token, production, index, sym, analyzeTable?.[name]);
-				throw new Error("parse failed");
 			}
 
 			// flatProductions 会检测拍平处理，对于一些特殊的产生式，给他拍平就好

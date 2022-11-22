@@ -256,6 +256,8 @@ function scanne(code) {
 		let char;
 		let value = "";
 		let raw = "";
+		// 是正则解析
+		let isRegExpParse = startSymbol === "/";
 		while (true) {
 			cursor += 1;
 			if (cursor >= code.length) {
@@ -265,10 +267,13 @@ function scanne(code) {
 			char = code[cursor];
 			// 如果遇到符号就结束
 			if (char === startSymbol) {
-				break;
+				// 非正则或者前一个字符不是 \ 就break, 正则的话可能会出现转移 \/
+				if(!isRegExpParse || value[value.length - 1] !== "\\") {
+					break;
+				};
 			}
 			// 转义字符处理, 如果 startSymbol 是 /, 则是正则表达式，为正则主体的一部分，不是转义，故不处理
-			if (char === "\\" && startSymbol !== "/") {
+			if (char === "\\" && !isRegExpParse) {
 				raw += char;
 				// 跳过
 				cursor += 1;
