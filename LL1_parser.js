@@ -389,7 +389,7 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
 		],
 		[
-			{ type: NOT_END_SYMBOL, value: "AsyncFunction" },
+			{ type: NOT_END_SYMBOL, value: "AsyncFunctionExpression" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "ClassExpression" },
@@ -1394,6 +1394,18 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Block" },
 		]
 	],
+	FunctionDeclaration: [
+		[
+			END_SYMBOLS.FUNCTION,
+			// 生成器乘号标识（可选）
+			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
+			END_SYMBOLS.END_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+		]
+	],
 	FunctionParams: [
 		[
 			{ type: NOT_END_SYMBOL, value: "FunctionParam" },
@@ -1417,15 +1429,15 @@ const not_end_symbols = {
 		[END_SYMBOLS.NONE],
 	],
 	// 异步关键字
-	AsyncFunction: [
+	AsyncFunctionExpression: [
 		[
 			END_SYMBOLS.ASYNC,
-			{ type: NOT_END_SYMBOL, value: "AsyncFunctionContent" },
+			{ type: NOT_END_SYMBOL, value: "AsyncFunctionExpressionContent" },
 		],
 		[END_SYMBOLS.NONE],
 	],
 	// 异步函数体
-	AsyncFunctionContent: [
+	AsyncFunctionExpressionContent: [
 		[
 			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
 		],
@@ -1626,6 +1638,14 @@ const not_end_symbols = {
 		[
 			END_SYMBOLS.CLASS,
 			{ type: NOT_END_SYMBOL, value: "ClassContent" },
+		]
+	],
+	ClassDeclaration: [
+		[
+			END_SYMBOLS.CLASS,
+			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+			{ type: NOT_END_SYMBOL, value: "OptionalSuperClass" },
+			{ type: NOT_END_SYMBOL, value: "ClassBody" },
 		]
 	],
 	ClassContent: [
@@ -1845,7 +1865,6 @@ const not_end_symbols = {
 		// if 语句
 		[
 			{ type: NOT_END_SYMBOL, value: "If" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		// ImportDeclaration statement
 		[
@@ -1862,7 +1881,6 @@ const not_end_symbols = {
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "While" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "Return" },
@@ -1880,23 +1898,19 @@ const not_end_symbols = {
 		[
 			END_SYMBOLS.FOR,
 			{ type: NOT_END_SYMBOL, value: "ForContent" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		[
 			END_SYMBOLS.TRY,
 			{ type: NOT_END_SYMBOL, value: "Block" },
 			{ type: NOT_END_SYMBOL, value: "OptionalCatchClause" },
 			{ type: NOT_END_SYMBOL, value: "OptionalFinallyClause" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		// 代码块, 这里的代码块会和对象字面量表达式冲突，所以放在后面，故花括号开头的语句，视为代码块
 		[
 			{ type: NOT_END_SYMBOL, value: "Block" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "Switch" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "Throw" },
@@ -1908,11 +1922,17 @@ const not_end_symbols = {
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "With" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		// 空语句
 		[
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+		],
+		// 函数与类声明，会覆盖 Expression 中表达式的解析，因为 statement 里是 Declaration
+		[
+			{ type: NOT_END_SYMBOL, value: "FunctionDeclaration" },
+		],
+		[
+			{ type: NOT_END_SYMBOL, value: "ClassDeclaration" },
 		],
 	],
 	// 标签语句
@@ -1977,16 +1997,21 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "VariableDeclaration" },
 		],
 		[
-			{ type: NOT_END_SYMBOL, value: "FunctionExpression" },
+			{ type: NOT_END_SYMBOL, value: "FunctionDeclaration" },
 		],
 		[
-			{ type: NOT_END_SYMBOL, value: "ClassExpression" },
+			{ type: NOT_END_SYMBOL, value: "ClassDeclaration" },
 		],
 		[
 			END_SYMBOLS["*"],
 			{ type: NOT_END_SYMBOL, value: "OptionalExportAllExported" },
 			END_SYMBOLS.FROM,
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
+		],
+		// export async function declaration
+		[
+			END_SYMBOLS.ASYNC,
+			{ type: NOT_END_SYMBOL, value: "FunctionDeclaration" },
 		],
 	],
 	OptionalExportAllExported: [
@@ -2067,9 +2092,10 @@ const transformers = (() => {
 		ArrayPatternItem,
 
 		FunctionExpression,
+		FunctionDeclaration,
 		FunctionParam,
-		AsyncFunction,
-		AsyncFunctionContent,
+		AsyncFunctionExpression,
+		AsyncFunctionExpressionContent,
 
 		If,
 		Else,
@@ -2117,6 +2143,7 @@ const transformers = (() => {
 		ClassBody,
 		OptionalSuperClass,
 		ClassExpression,
+		ClassDeclaration,
 
 		ObjectLiteral,
 		ArrayLiteral,
@@ -2946,16 +2973,9 @@ const transformers = (() => {
 
 			// class 的 setter 和 getter 转换，仅和 object 的 type 不同, isMethod 仍代表是否是 setter, getter
 			const classItemStartInSetOrGetTransformer = ([{ value: kind }, v]) => {
+				// 有效
 				if(v) {
-					const { isProperty, isMethod, isComputed, key, value } = v;
-					return {
-						type: isProperty ? "PropertyDefinition" : "MethodDefinition",
-						static: false,
-						kind: isMethod ? kind : "method",
-						computed: isComputed ? true : false,
-						key,
-						value,
-					}
+					return v
 				}else {
 					return {
 						type: "PropertyDefinition",
@@ -2975,6 +2995,16 @@ const transformers = (() => {
 				...MethodGetterContent.map(production => ([production, getTransformer(production, "getter")])),
 				...MethodSetterContent.map(production => ([production, getTransformer(production, "setter")])),
 				// 1 是普通属性，需要处理为 { isMethod, isComputed, key, value } 的格式便于给 objectSetOrGetTransformer 继续处理区分
+				[ObjectPropertyStartInGet[0], ({ isMethod, isComputed, key, value })=> {
+					return {
+						type: "Property",
+						kind: "get",
+						method: isMethod,
+						computed: isComputed,
+						key: key,
+						value: value,
+					};
+				}],
 				[ObjectPropertyStartInGet[1], input=> ({
 					type: "Property",
 					kind: "init",
@@ -2987,6 +3017,16 @@ const transformers = (() => {
 					value: input[1],
 				})],
 				[ObjectPropertyStartInGet[2], createObjectFunctionContentTransformer("get")],
+				[ObjectPropertyStartInSet[0], ({ isMethod, isComputed, key, value })=> {
+					return {
+						type: "Property",
+						kind: "set",
+						method: isMethod,
+						computed: isComputed,
+						key: key,
+						value: value,
+					};
+				}],
 				[ObjectPropertyStartInSet[1], input=> ({
 					type: "Property",
 					kind: "init",
@@ -3077,8 +3117,8 @@ const transformers = (() => {
 					key: input[1].key,
 					value: {
 						...input[1].value,
-						"async": true,
-						generator: false,
+						"async": false,
+						generator: true,
 					},
 				})],
 
@@ -3086,9 +3126,21 @@ const transformers = (() => {
 				// class setter, getter
 				[ClassItemContent[0], classItemStartInSetOrGetTransformer],
 				[ClassItemContent[1], classItemStartInSetOrGetTransformer],
+				[ClassItemStartInGet[0], ({ isComputed, key, value })=> {
+					return {
+						type: "MethodDefinition",
+						static: false,
+						kind: "get",
+						computed: isComputed ? true : false,
+						key,
+						value,
+					}
+				}],
 				// 1 是普通属性，需要处理为 { isMethod, isComputed, key, value } 的格式便于给 classItemStartInSetOrGetTransformer 继续处理区分
 				[ClassItemStartInGet[1], input=> ({
-					isProperty: true,
+					type: "PropertyDefinition",
+					static: false,
+					computed: false,
 					key: {
 						type: "Identifier",
 						name: "get",
@@ -3096,9 +3148,21 @@ const transformers = (() => {
 					value: input[1],
 				})],
 				[ClassItemStartInGet[2], createClassFunctionContentTransformer("get")],
+				[ClassItemStartInSet[0], ({ isComputed, key, value })=> {
+					return {
+						type: "MethodDefinition",
+						static: false,
+						kind: "set",
+						computed: isComputed ? true : false,
+						key,
+						value,
+					}
+				}],
 				// 1 是普通属性，需要处理为 { isMethod, isComputed, key, value } 的格式便于给 classItemStartInSetOrGetTransformer 继续处理区分
 				[ClassItemStartInSet[1], input=> ({
-					isProperty: true,
+					type: "PropertyDefinition",
+					static: false,
+					computed: false,
 					key: {
 						type: "Identifier",
 						name: "set",
@@ -3151,7 +3215,7 @@ const transformers = (() => {
 				// 异步函数
 				[ClassItemContent[2], input=> {
 					// 如果有值则直接返回，没有的话则就没有初始化，因此无value
-					if(input[1] && input[1]?.value !== ",") {
+					if(input[1]) {
 						return input[1];
 					}else {
 						return {
@@ -3293,14 +3357,13 @@ const transformers = (() => {
 					type: "ClassBody",
 					body: input.slice(1, input.length - 1),
 				})],
-				// 这里的 type superClass 只是一个标记
-				[OptionalSuperClass[0], input=> ({ type: "superClass", value: input[1] })],
+				[OptionalSuperClass[0], input=> input[1]],
 				[ClassContent[0], input=> {
 					if(input.length === 3) {
 						return {
 							type: "ClassExpression",
 							id: input[0],
-							superClass: input[1].value,
+							superClass: input[1],
 							body: input[2],
 						};
 					}else {
@@ -3317,7 +3380,7 @@ const transformers = (() => {
 						return {
 							type: "ClassExpression",
 							id: null,
-							superClass: input[0].value,
+							superClass: input[0],
 							body: input[1],
 						};
 					}else {
@@ -3330,6 +3393,23 @@ const transformers = (() => {
 					}
 				}],
 				[ClassExpression[0], input=> input[1]],
+				[ClassDeclaration[0], input=> {
+					if(input.length === 4) {
+						return {
+							type: "ClassDeclaration",
+							id: input[1],
+							superClass: input[2],
+							body: input[3],
+						}
+					}else if(input.length === 3) {
+						return {
+							type: "ClassDeclaration",
+							id: input[1],
+							superClass: null,
+							body: input[2],
+						}
+					}
+				}],
 			];
 		})(),
 	]
@@ -3510,6 +3590,30 @@ const transformers = (() => {
 			result.params = input.slice(bracketStartIndex + 1, input.length - 2);
 			return result;
 		}],
+		[FunctionDeclaration[0], input=> {
+			const result = {
+				type: "FunctionDeclaration",
+				body: input[input.length - 1],
+				id: null,
+				generator: false,
+			};
+
+			// 参数开始括号的索引
+			let bracketStartIndex = input.findIndex(v => v?.value === "(");
+
+			// 如果括号索引为2, 那么是正常函数
+			if(bracketStartIndex === 2) {
+				result.id = input[1];
+			}
+			// 如果括号索引为3, 那么是生成器函数
+			if(bracketStartIndex === 3) {
+				result.generator = true;
+				result.id = input[2];
+			}
+
+			result.params = input.slice(bracketStartIndex + 1, input.length - 2);
+			return result;
+		}],
 		[FunctionParam[0], input => {
 			// 如果索引1值为空, 或者直接没有索引1，即没有默认值
 			if (input?.[1]?.value === "," || !(input?.[1])) {
@@ -3527,12 +3631,12 @@ const transformers = (() => {
 			type: "RestElement",
 			argument: input[1],
 		})],
-		[AsyncFunction[0], input => ({
-			"async": true,
+		[AsyncFunctionExpression[0], input => ({
 			...input[1],
+			"async": true,
 		})],
 		// 无括号异步箭头函数
-		[AsyncFunctionContent[1], input => {
+		[AsyncFunctionExpressionContent[1], input => {
 			if (input[1]) {
 				return {
 					type: "ArrowFunctionExpression",
@@ -3545,7 +3649,7 @@ const transformers = (() => {
 			throw new Error("parse failed");
 		}],
 		// 带括号异步箭头函数
-		[AsyncFunctionContent[2], input => {
+		[AsyncFunctionExpressionContent[2], input => {
 			if (input[input.length - 1]?.value !== ")") {
 				return {
 					type: "ArrowFunctionExpression",
@@ -3724,16 +3828,6 @@ const transformers = (() => {
 		})],
 		// 表达式
 		[Statement[0], input => {
-			// 如果是函数声明，直接返回，并且类型改为 FunctionDeclaration
-			if (input[0].type === "FunctionExpression") {
-				input[0].type = "FunctionDeclaration";
-				return input[0];
-			}
-			// 如果是类声明，直接返回，并且类型改为 ClassDeclaration
-			if (input[0].type === "ClassExpression") {
-				input[0].type = "ClassDeclaration";
-				return input[0];
-			}
 			// 都不是，包装为普通的 ExpressionStatement
 			return {
 				type: "ExpressionStatement",
@@ -3879,10 +3973,6 @@ const transformers = (() => {
 		])],
 		[ExportRedirect[0], input => (input[1])],
 		[ExportContent[0], input => {
-			// 如果是函数，类型就是函数声明
-			input[1].type === "FunctionExpression" && (input[1].type = "FunctionDeclaration");
-			// 如果是类，类型就是类声明
-			input[1].type === "ClassExpression" && (input[1].type = "ClassDeclaration");
 			return {
 				type: "ExportDefaultDeclaration",
 				declaration: input[1],
@@ -3898,25 +3988,28 @@ const transformers = (() => {
 				type: "ExportNamedDeclaration",
 				specifiers: input[0],
 				source: input[1],
+				declaration: null,
 			};
 		}],
 		[ExportContent[2], input => ({
 			type: "ExportNamedDeclaration",
+			specifiers: [],
+			source: null,
 			declaration: input[0],
 		})],
 		[ExportContent[3], input => {
-			// type 为声明
-			input[0].type = "FunctionDeclaration";
 			return {
 				type: "ExportNamedDeclaration",
+				specifiers: [],
+				source: null,
 				declaration: input[0],
 			};
 		}],
 		[ExportContent[4], input => {
-			// type 为声明
-			input[0].type = "ClassDeclaration";
 			return {
 				type: "ExportNamedDeclaration",
+				specifiers: [],
+				source: null,
 				declaration: input[0],
 			};
 		}],
@@ -3926,6 +4019,16 @@ const transformers = (() => {
 			type: "ExportAllDeclaration",
 			exported: input.length === 4 ? input[1] : null,
 			source: input[input.length - 1],
+		})],
+		// 异步函数导出
+		[ExportContent[6], input => ({
+			type: "ExportNamedDeclaration",
+			specifiers: [],
+			source: null,
+			declaration: {
+				...input[1],
+				"async": true,
+			}
 		})],
 	]);
 })();
