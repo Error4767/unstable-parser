@@ -1520,6 +1520,20 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "OptionalExpression" },
 		],
 	],
+	// break
+	Break: [
+		[
+			END_SYMBOLS.BREAK,
+			{ type: NOT_END_SYMBOL, value: "OptionalIdentify" },
+		],
+	],
+	// continue
+	Continue: [
+		[
+			END_SYMBOLS.CONTINUE,
+			{ type: NOT_END_SYMBOL, value: "OptionalIdentify" },
+		],
+	],
 	// throw
 	Throw: [
 		[
@@ -1910,11 +1924,11 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		[
-			END_SYMBOLS.BREAK,
+			{ type: NOT_END_SYMBOL, value: "Break" },
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		[
-			END_SYMBOLS.CONTINUE,
+			{ type: NOT_END_SYMBOL, value: "Continue" },
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
 		// for循环
@@ -2129,6 +2143,8 @@ const transformers = (() => {
 		While,
 
 		Return,
+		Break,
+		Continue,
 		Throw,
 		With,
 
@@ -3736,6 +3752,14 @@ const transformers = (() => {
 			type: "ReturnStatement",
 			argument: input[1],
 		})],
+		[Break[0], input => ({
+			type: "BreakStatement",
+			label: input[1] || null,
+		})],
+		[Continue[0], input => ({
+			type: "ContinueStatement",
+			label: input[1] || null,
+		})],
 		[Throw[0], input => ({
 			type: "ThrowStatement",
 			argument: input[1],
@@ -3913,13 +3937,9 @@ const transformers = (() => {
 		[Statement[5], input => input[0]],
 		[Statement[6], input => input[0]],
 		// break
-		[Statement[7], () => ({
-			type: "BreakStatement",
-		})],
+		[Statement[7], input => input[0]],
 		// continue
-		[Statement[8], () => ({
-			type: "ContinueStatement",
-		})],
+		[Statement[8], input => input[0]],
 		// for 循环语句
 		[Statement[9], input => input[1]],
 		// try 语句
