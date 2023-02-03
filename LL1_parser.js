@@ -840,10 +840,20 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Term18" },
 		],
 	],
+	// 函数调用参数
+	FunctinoCallParam: [
+		[
+			{ type: NOT_END_SYMBOL, value: "Term1_" },
+		],
+		[
+			END_SYMBOLS["..."],
+			{ type: NOT_END_SYMBOL, value: "Term1_" },
+		],
+	],
 	// 可选函数调用参数
 	OptionalFunctionCallParams: [
 		[
-			{ type: NOT_END_SYMBOL, value: "Term1_" },
+			{ type: NOT_END_SYMBOL, value: "FunctinoCallParam" },
 			// 末尾可以带逗号
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 			{ type: NOT_END_SYMBOL, value: "OptionalFunctionCallParams" },
@@ -2231,6 +2241,7 @@ const transformers = (() => {
 		Term3,
 		Term18,
 		OptionalChainingAttributeName,
+		FunctinoCallParam,
 		OptionalFunctionCallParams,
 	} = not_end_symbols;
 
@@ -2930,6 +2941,10 @@ const transformers = (() => {
 			input[3] && result.push(input[3]);
 			return result;
 		}],
+		[FunctinoCallParam[1], input=> ({
+			type: "SpreadElement",
+			argument: input[1],
+		})],
 		[OptionalFunctionCallParams[0], input=> input.flat(Number.MAX_SAFE_INTEGER).filter(item=> item?.value !== ",")],
 		// 可选链计算属性名
 		[OptionalChainingAttributeName[1], input => ({
@@ -4046,6 +4061,10 @@ const transformers = (() => {
 		])],
 		[ExportRedirect[0], input => (input[1])],
 		[ExportContent[0], input => {
+			// default 导出的函数都是 FunctionDeclaration
+			if(input[1]?.type === "FunctionExpression") {
+				input[1].type = "FunctionDeclaration";
+			}
 			return {
 				type: "ExportDefaultDeclaration",
 				declaration: input[1],
