@@ -41,7 +41,7 @@ function generateSyntaxDescriptionTexts() {
 
 /* 
 不符合 LL1 需要手写特殊逻辑解析的语法
-FunctionParams in ArrowFunciton
+FunctionParams in ArrowFunction
 ForInStatement
 ForOfStatement
 ArrayDesturcture in Expression
@@ -240,8 +240,21 @@ const DATA_TYPE_SYMBOLS = {
 			if (result) {
 				token.type = "Literal";
 				token.raw = token.value;
-				// 替换掉所有_ ，再解析为值
-				token.value = Number(token.raw.replaceAll("_", ""));
+
+				// 替换掉所有_
+				token.value = token.raw.replaceAll("_", "");
+				
+				const tokenLength = token.value.length;
+				
+				if(token.value[tokenLength - 1] === "n") {
+					// bigint 属性是其纯数字部分
+					token.bigint = token.value.substring(0, tokenLength - 1)
+					// 转化为真正的 bigint
+					token.value = BigInt(token.bigint);
+				}else {// 转化为 number
+					token.value = Number(token.value);
+				}
+				
 			}
 			return result;
 		}

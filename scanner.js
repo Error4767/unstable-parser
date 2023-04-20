@@ -317,13 +317,23 @@ function scanne(code) {
 			// 十六进制
 			if (char === "x") {
 				isHex = true;
-				noDecimal = true;
 			}
+			noDecimal = true;
 		}
 
 		while (cursor < code.length) {
 
 			char = code[cursor];
+			// big int 处理，直接结束
+			if(char === "n") {
+				// 如果bigint带. 抛出错误
+				if(hadPoint) {
+					throw new SyntaxError("valid or unexpected token");
+				}
+				numerticLiteral += char;
+				cursor += 1;
+				break;
+			}
 			// 数字可以带下划线_, 只有10进制可以带一个.
 			if (char === "_" || (!hadPoint && !noDecimal && char === ".") || (isHex ? HEX_NUMERTIC_SYMBOL.test(char) : NUMERTIC_SYMBOL.test(char))) {
 				if (char === ".") {
@@ -340,6 +350,11 @@ function scanne(code) {
 		if (numerticLiteral[numerticLiteral.length - 1] === ".") {
 			cursor -= 1;
 			numerticLiteral = numerticLiteral.slice(0, numerticLiteral.length - 1);
+		}
+		// 如果最后出现分隔符，报错
+		const tokenLength = numerticLiteral.length;
+		if(numerticLiteral[tokenLength - 1] === "_" || numerticLiteral.substring(tokenLength - 2) === "_n") {
+			throw new SyntaxError("Numeric separator is not allowed at the last of digits ");
 		}
 		return numerticLiteral;
 	}
