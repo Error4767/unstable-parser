@@ -231,11 +231,11 @@ const DATA_TYPE_SYMBOLS = {
 			return result;
 		}
 	},
-	[TOKEN_TYPES.NUMERTIC_LITERAL]: {
+	[TOKEN_TYPES.NUMERIC_LITERAL]: {
 		type: END_SYMBOL,
-		dataType: TOKEN_TYPES.NUMERTIC_LITERAL,
+		dataType: TOKEN_TYPES.NUMERIC_LITERAL,
 		match(token) {
-			const result = token.type === TOKEN_TYPES.NUMERTIC_LITERAL;
+			const result = token.type === TOKEN_TYPES.NUMERIC_LITERAL;
 			// 标准化转换
 			if (result) {
 				token.type = "Literal";
@@ -315,7 +315,7 @@ const validPropertyNames = [
 		DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
 	],
 	[
-		DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
+		DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERIC_LITERAL],
 	],
 	[
 		DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
@@ -1002,7 +1002,7 @@ const not_end_symbols = {
 		],
 		// 数值字面量属性名
 		[
-			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERIC_LITERAL],
 			{ type: NOT_END_SYMBOL, value: "ObjectPropertyContent" },
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
@@ -1191,7 +1191,7 @@ const not_end_symbols = {
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
 		],
 		[
-			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERIC_LITERAL],
 		],
 		[
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.BOOLEAN_LITERAL],
@@ -1340,7 +1340,7 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 		],
 		[
-			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERTIC_LITERAL],
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.NUMERIC_LITERAL],
 			END_SYMBOLS[":"],
 			{ type: NOT_END_SYMBOL, value: "VariableIdentifier" },
 			{ type: NOT_END_SYMBOL, value: "ObjectPatternOptionalDefaultValue" },

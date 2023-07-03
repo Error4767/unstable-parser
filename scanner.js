@@ -1,14 +1,14 @@
 const WHITE_SPACE = /\s/;
 
 const STRING_SYMBOL = /[\'\"]/;
-const NUMERTIC_SYMBOL = /[0-9]/;
-const HEX_NUMERTIC_SYMBOL = /[0-9a-fA-F]/;
+const NUMERIC_SYMBOL = /[0-9]/;
+const HEX_NUMERIC_SYMBOL = /[0-9a-fA-F]/;
 
 // 目前使用Symbol防止同名异常
 const TOKEN_TYPES = {
 	IDENTIFY: Symbol("Identify"),
 	STRING_LITERAL: Symbol("StringLiteral"),
-	NUMERTIC_LITERAL: Symbol("NumerticLiteral"),
+	NUMERIC_LITERAL: Symbol("NumericLiteral"),
 	BOOLEAN_LITERAL: Symbol("BooleanLiteral"),
 	NULL_LITERAL: Symbol("NullLiteral"),
 	SINGLE_SYMBOL: Symbol("SingleSymbol"),
@@ -294,8 +294,8 @@ function scanne(code) {
 		};
 	}
 
-	function parseNumertic(firstNumertic) {
-		let numerticLiteral = firstNumertic;
+	function parseNumeric(firstNumeric) {
+		let numericLiteral = firstNumeric;
 		let char;
 
 		// 非10进制
@@ -312,7 +312,7 @@ function scanne(code) {
 		// 十六进制，八进制，二进制 (匹配第二个字符)
 		char = code[cursor];
 		if (/[xXoObB]/.test(char)) {
-			numerticLiteral += char;
+			numericLiteral += char;
 			cursor += 1;
 			// 十六进制
 			if (char === "x") {
@@ -330,33 +330,33 @@ function scanne(code) {
 				if(hadPoint) {
 					throw new SyntaxError("valid or unexpected token");
 				}
-				numerticLiteral += char;
+				numericLiteral += char;
 				cursor += 1;
 				break;
 			}
 			// 数字可以带下划线_, 只有10进制可以带一个.
-			if (char === "_" || (!hadPoint && !noDecimal && char === ".") || (isHex ? HEX_NUMERTIC_SYMBOL.test(char) : NUMERTIC_SYMBOL.test(char))) {
+			if (char === "_" || (!hadPoint && !noDecimal && char === ".") || (isHex ? HEX_NUMERIC_SYMBOL.test(char) : NUMERIC_SYMBOL.test(char))) {
 				if (char === ".") {
 					// 已有点
 					hadPoint = true;
 				}
-				numerticLiteral += char;
+				numericLiteral += char;
 				cursor += 1;
 			} else {
 				break;
 			}
 		}
 		// 以.结尾，则不是小数，而是属性获取，不解析为数字，cursor-1
-		if (numerticLiteral[numerticLiteral.length - 1] === ".") {
+		if (numericLiteral[numericLiteral.length - 1] === ".") {
 			cursor -= 1;
-			numerticLiteral = numerticLiteral.slice(0, numerticLiteral.length - 1);
+			numericLiteral = numericLiteral.slice(0, numericLiteral.length - 1);
 		}
 		// 如果最后出现分隔符，报错
-		const tokenLength = numerticLiteral.length;
-		if(numerticLiteral[tokenLength - 1] === "_" || numerticLiteral.substring(tokenLength - 2) === "_n") {
+		const tokenLength = numericLiteral.length;
+		if(numericLiteral[tokenLength - 1] === "_" || numericLiteral.substring(tokenLength - 2) === "_n") {
 			throw new SyntaxError("Numeric separator is not allowed at the last of digits ");
 		}
-		return numerticLiteral;
+		return numericLiteral;
 	}
 
 	// 正则表达式的有效上个字符, 有一种没有意义的情况不支持,在（ if(condition) /regexp pattern/igs else /regexp pattern/igs） 这种情况下应当被解析为正则，但无意义，故暂不支持
@@ -539,10 +539,10 @@ function scanne(code) {
 			continue;
 		}
 		// 纯数字处理
-		if (currentToken.length === 0 && NUMERTIC_SYMBOL.test(char)) {
-			const numertic = parseNumertic(char);
-			if (numertic) {
-				tokens.push(createToken(numertic, TOKEN_TYPES.NUMERTIC_LITERAL));
+		if (currentToken.length === 0 && NUMERIC_SYMBOL.test(char)) {
+			const numeric = parseNumeric(char);
+			if (numeric) {
+				tokens.push(createToken(numeric, TOKEN_TYPES.NUMERIC_LITERAL));
 				continue;
 			} else {
 				return false;
@@ -555,14 +555,14 @@ function scanne(code) {
 			const resultToken = createToken(char, TOKEN_TYPES.SINGLE_SYMBOL);
 
 			// 如果点后紧跟数字，则是小数的另一种写法
-			if (char == "." && NUMERTIC_SYMBOL.test(code[cursor + 1])) {
+			if (char == "." && NUMERIC_SYMBOL.test(code[cursor + 1])) {
 				// 跳过.
 				cursor += 1;
 				// 浮点数部分,从cursor开始
-				const floatNumerticPart = parseNumertic(code[cursor]);
-				if (floatNumerticPart) {
+				const floatNumericPart = parseNumeric(code[cursor]);
+				if (floatNumericPart) {
 					// 将.拼接到前面
-					tokens.push(createToken("." + String(floatNumerticPart), TOKEN_TYPES.NUMERTIC_LITERAL));
+					tokens.push(createToken("." + String(floatNumericPart), TOKEN_TYPES.NUMERIC_LITERAL));
 					continue;
 				} else {
 					return false;
