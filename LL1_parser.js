@@ -147,7 +147,7 @@ const END_SYMBOLS = {
 	"|=": { type: END_SYMBOL, value: "|=" },
 	"&&=": { type: END_SYMBOL, value: "&&=" },
 	"||=": { type: END_SYMBOL, value: "||=" },
-	"??=": { type: END_SYMBOL, value: "??" },
+	"??=": { type: END_SYMBOL, value: "??=" },
 	// 幂运算符
 	"**": { type: END_SYMBOL, value: "**" },
 	// 位运算符
