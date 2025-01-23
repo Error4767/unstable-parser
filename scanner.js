@@ -258,6 +258,8 @@ function scanne(code) {
 		let raw = "";
 		// 是正则解析
 		let isRegExpParse = startSymbol === "/";
+		// 是否在正则的[]内
+		let isInSquareBracket = false;
 		while (true) {
 			cursor += 1;
 			if (cursor >= code.length) {
@@ -265,9 +267,16 @@ function scanne(code) {
 				return false;
 			}
 			char = code[cursor];
-			// 如果遇到符号就结束
-			if (char === startSymbol) {
-				// 非正则或者前一个字符不是 \ 就break, 正则的话可能会出现转移 \/
+			// 正则[]内可以写任意字符而不需要转义，除了自己[]
+			if(isRegExpParse && char === "[") {
+				isInSquareBracket = true;
+			}
+			if(isRegExpParse && char === "]") {
+				isInSquareBracket = false;
+			}
+			// 如果遇到符号就结束（不在正则方括号内，那里面可以直接写/而不转移，并非结束符号）
+			if (char === startSymbol && !isInSquareBracket) {
+				// 非正则或者前一个字符不是 \ 就break, 正则的话可能会出现转义 \/
 				if(!isRegExpParse || value[value.length - 1] !== "\\") {
 					break;
 				};
@@ -392,7 +401,7 @@ function scanne(code) {
 		// 如果上个token是不可视为除号处理的情况，就视为正则表达式解析
 		const preToken = tokens[tokens.length - 1];
 		// 如果代码开头就是 / ， 那也视为正则，若开头是 / 则上个 token 就不存在
-		if (!preToken || regExpValidPreSymbols[tokens[tokens.length - 1].value]) {
+		if (!preToken || regExpValidPreSymbols[tokens[tokens.length - 1].value[0]]) {
 			return true;
 		}
 		return false;

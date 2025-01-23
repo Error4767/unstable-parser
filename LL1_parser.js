@@ -50,6 +50,7 @@ Dynamic Import
 import.meta
 new.target
 LabeledStatement
+break 后面的 case 或 default，必须被当作 Keyword 解析，不可以被当作 Identify
 */
 
 // 终结符
@@ -507,14 +508,13 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Term3" },
 		],
 	],
+	// 这边条件运算中，可以放置单表达式，即Term1_
 	Term3: [
 		[
 			END_SYMBOLS["?"],
-			{ type: NOT_END_SYMBOL, value: "Term3_" },
-			{ type: NOT_END_SYMBOL, value: "Term3" },
+			{ type: NOT_END_SYMBOL, value: "Term1_" },
 			END_SYMBOLS[":"],
-			{ type: NOT_END_SYMBOL, value: "Term3_" },
-			{ type: NOT_END_SYMBOL, value: "Term3" },
+			{ type: NOT_END_SYMBOL, value: "Term1_" },
 		],
 		[END_SYMBOLS.NONE],
 	],
@@ -1533,7 +1533,7 @@ const not_end_symbols = {
 			END_SYMBOLS.START_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "Expression" },
 			END_SYMBOLS.END_BRACKET,
-			{ type: NOT_END_SYMBOL, value: "Block" },
+			{ type: NOT_END_SYMBOL, value: "Statement" },
 		],
 	],
 	// return
@@ -4408,6 +4408,8 @@ function getLL1Infos() {
 
 function parse(input) {
 	const tokens = [...input].reverse();
+	// 已解析的tokens，少量地方会用到作为特殊处理
+	const parsedTokens = [];
 
 	const token = tokens[tokens.length - 1];
 	// 无 token 的话，就返回一个 Statements 为空的 Program 形式
@@ -4430,9 +4432,19 @@ function parse(input) {
 		}
 		if (sym.type === END_SYMBOL) {
 			const token = tokens.pop();
+			parsedTokens.push(token);
 			// 遇到空，直接结束
 			if (sym === END_SYMBOLS.NONE) {
 				return true;
+			}
+			// break 之后跟 case 或是 default, 由于 match的时候会尝试 Keyword 也可能当作 Identidy 而出错，这类情况明确是当作 keyword 处理
+			if(["default", "case"].includes(token.value) && sym.dataType === TOKEN_TYPES.IDENTIFY) {
+				const preToken = parsedTokens.at(-2);
+				if(preToken.type === TOKEN_TYPES.KEYWORD && preToken.value === "break") {
+					// 将最后一个放回去，不应该是这里解析
+					tokens.push(parsedTokens.pop());
+					return true;
+				}
 			}
 
 			// 如果有match, 调用其 match 方法匹配
