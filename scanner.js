@@ -126,6 +126,7 @@ const keyWords = {};
 	"if",
 	"else",
 	"while",
+	"do",
 	"for",
 	"return",
 	"typeof",

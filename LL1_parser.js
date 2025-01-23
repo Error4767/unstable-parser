@@ -72,6 +72,7 @@ const END_SYMBOLS = {
 	// 循环
 	FOR: { type: END_SYMBOL, value: "for" },
 	WHILE: { type: END_SYMBOL, value: "while" },
+	DO: { type: END_SYMBOL, value: "do" },
 	BREAK: { type: END_SYMBOL, value: "break" },
 	CONTINUE: { type: END_SYMBOL, value: "continue" },
 	OF: { type: END_SYMBOL, value: "of" },
@@ -1536,6 +1537,17 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "Statement" },
 		],
 	],
+	// do while 语句
+	DoWhile: [
+		[
+			END_SYMBOLS.DO,
+			{ type: NOT_END_SYMBOL, value: "Block" },
+			END_SYMBOLS.WHILE,
+			END_SYMBOLS.START_BRACKET,
+			{ type: NOT_END_SYMBOL, value: "Expression" },
+			END_SYMBOLS.END_BRACKET,
+		],
+	],
 	// return
 	Return: [
 		[
@@ -1943,6 +1955,9 @@ const not_end_symbols = {
 			{ type: NOT_END_SYMBOL, value: "While" },
 		],
 		[
+			{ type: NOT_END_SYMBOL, value: "DoWhile" },
+		],
+		[
 			{ type: NOT_END_SYMBOL, value: "Return" },
 			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
 		],
@@ -2164,6 +2179,7 @@ const transformers = (() => {
 		Else,
 
 		While,
+		DoWhile,
 
 		Return,
 		Break,
@@ -3771,6 +3787,11 @@ const transformers = (() => {
 			return ifStatement;
 		}],
 		[Else[0], input => input[1]],
+		[DoWhile[0], input => ({
+			type: "DoWhileStatement",
+			test: input[4],
+			body: input[1],
+		})],
 		[While[0], input => ({
 			type: "WhileStatement",
 			test: input[2],
@@ -3961,17 +3982,17 @@ const transformers = (() => {
 		}],
 		// 导出声明
 		[Statement[4], input => (input[1])],
-
 		[Statement[5], input => input[0]],
 		[Statement[6], input => input[0]],
-		// break
 		[Statement[7], input => input[0]],
-		// continue
+		// break
 		[Statement[8], input => input[0]],
+		// continue
+		[Statement[9], input => input[0]],
 		// for 循环语句
-		[Statement[9], input => input[1]],
+		[Statement[10], input => input[1]],
 		// try 语句
-		[Statement[10], input => {
+		[Statement[11], input => {
 			const result = {
 				type: "TryStatement",
 				block: input[1],
@@ -3990,19 +4011,19 @@ const transformers = (() => {
 			return result;
 		}],
 		// 代码块
-		[Statement[11], input => (input[0])],
-		// switch
 		[Statement[12], input => (input[0])],
-		// throw
+		// switch
 		[Statement[13], input => (input[0])],
+		// throw
+		[Statement[14], input => (input[0])],
 		// debugger
-		[Statement[14], () => ({
+		[Statement[15], () => ({
 			type: "DebuggerStatement",
 		})],
 		// with
-		[Statement[15], input => (input[0])],
+		[Statement[16], input => (input[0])],
 		// 空语句
-		[Statement[16], () => ({
+		[Statement[17], () => ({
 			type: "EmptyStatement",
 		})],
 
@@ -4563,7 +4584,9 @@ function parse(input) {
 					// console.log("idsadkl", token, sym, analyzeTable?.[name]);
 					return true;
 				}else {
-					console.log(p, name, token, production, index, sym, analyzeTable?.[name]);
+					console.log(parsedTokens.slice(parsedTokens.length - 10), tokens.slice(0, 10));
+					console.log("-------------")
+					console.log(p, name, token, production, index, sym);
 					throw new Error("parse failed");
 				}
 			}
