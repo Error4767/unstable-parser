@@ -366,6 +366,28 @@ function scanne(code) {
 		if(numericLiteral[tokenLength - 1] === "_" || numericLiteral.substring(tokenLength - 2) === "_n") {
 			throw new SyntaxError("Numeric separator is not allowed at the last of digits ");
 		}
+
+		// 这里cursor已经在parseNumeric增加完成了，所以这指的是下一个字符
+		// 科学计数法处理
+		if(code[cursor] === "e") {
+			cursor += 1;
+			let eValue = "";
+			while(cursor < code.length) {
+				const char = code[cursor];
+				// 科学计数位可以是
+				if(NUMERIC_SYMBOL.test(char) || char === "_") {
+					eValue += char;
+					cursor += 1;
+				}else {
+					break
+				}
+			}
+			// 首位如果是 _ 分隔符，就报错
+			if(eValue[0] === "_" || eValue[eValue.length - 1] === "_") {
+				throw new SyntaxError("Invalid or unexpected token");
+			}
+			numericLiteral = `${numericLiteral}e${eValue}`;
+		}
 		return numericLiteral;
 	}
 
@@ -671,6 +693,7 @@ function scanne(code) {
 
 	// 添加末尾
 	pushParsedToken();
+	console.log(tokens);
 
 	return tokens;
 }

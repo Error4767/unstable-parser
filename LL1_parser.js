@@ -44,7 +44,7 @@ function generateSyntaxDescriptionTexts() {
 FunctionParams in ArrowFunction
 ForInStatement
 ForOfStatement
-ArrayDesturcture in Expression
+ArrayDestructure in Expression
 ObjectDestructure in Expression
 Dynamic Import
 import.meta
@@ -445,12 +445,12 @@ const not_end_symbols = {
 		// 生成器 yield
 		[
 			END_SYMBOLS.YIELD,
-			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			{ type: NOT_END_SYMBOL, value: "OptionalMultiplicationSign" },
 			{ type: NOT_END_SYMBOL, value: "OptionalTerm1_" },
 		],
 	],
 	// 可选乘号
-	OptionalMutiplicationSign: [
+	OptionalMultiplicationSign: [
 		[
 			END_SYMBOLS["*"],
 		],
@@ -855,7 +855,7 @@ const not_end_symbols = {
 		],
 	],
 	// 函数调用参数
-	FunctinoCallParam: [
+	FunctionCallParam: [
 		[
 			{ type: NOT_END_SYMBOL, value: "Term1_" },
 		],
@@ -867,7 +867,7 @@ const not_end_symbols = {
 	// 可选函数调用参数
 	OptionalFunctionCallParams: [
 		[
-			{ type: NOT_END_SYMBOL, value: "FunctinoCallParam" },
+			{ type: NOT_END_SYMBOL, value: "FunctionCallParam" },
 			// 末尾可以带逗号
 			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
 			{ type: NOT_END_SYMBOL, value: "OptionalFunctionCallParams" },
@@ -925,7 +925,7 @@ const not_end_symbols = {
 		[END_SYMBOLS.NONE],
 	],
 	// 可选分号
-	OptionalDelimter: [
+	OptionalSemicolon: [
 		[END_SYMBOLS[";"]],
 		[END_SYMBOLS.NONE],
 	],
@@ -1103,7 +1103,7 @@ const not_end_symbols = {
 	ObjectPropertyStartInAsync: [
 		// 异步函数
 		[
-			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			{ type: NOT_END_SYMBOL, value: "OptionalMultiplicationSign" },
 			{ type: NOT_END_SYMBOL, value: "PropertyMethodContent" },
 		],
 		// 一般属性
@@ -1428,7 +1428,7 @@ const not_end_symbols = {
 		[
 			END_SYMBOLS.FUNCTION,
 			// 生成器乘号标识（可选）
-			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			{ type: NOT_END_SYMBOL, value: "OptionalMultiplicationSign" },
 			// 函数名称是可选的
 			{ type: NOT_END_SYMBOL, value: "OptionalIdentify" },
 			END_SYMBOLS.START_BRACKET,
@@ -1441,7 +1441,7 @@ const not_end_symbols = {
 		[
 			END_SYMBOLS.FUNCTION,
 			// 生成器乘号标识（可选）
-			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			{ type: NOT_END_SYMBOL, value: "OptionalMultiplicationSign" },
 			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
 			END_SYMBOLS.START_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
@@ -1466,7 +1466,7 @@ const not_end_symbols = {
 			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
 			END_SYMBOLS["=>"],
 			{ type: NOT_END_SYMBOL, value: "ArrowFunctionBody" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		[
 			END_SYMBOLS.START_BRACKET,
@@ -1474,7 +1474,7 @@ const not_end_symbols = {
 			END_SYMBOLS.END_BRACKET,
 			END_SYMBOLS["=>"],
 			{ type: NOT_END_SYMBOL, value: "ArrowFunctionBody" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 	],
 	FunctionParams: [
@@ -1761,12 +1761,12 @@ const not_end_symbols = {
 	ClassItem: [
 		[
 			{ type: NOT_END_SYMBOL, value: "ClassItemContent" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		[
 			END_SYMBOLS.STATIC,
 			{ type: NOT_END_SYMBOL, value: "ClassItemStartInStatic" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 	],
 	ClassItemStartInStatic: [
@@ -1872,7 +1872,7 @@ const not_end_symbols = {
 	ClassItemStartInAsync: [
 		// 异步函数
 		[
-			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			{ type: NOT_END_SYMBOL, value: "OptionalMultiplicationSign" },
 			{ type: NOT_END_SYMBOL, value: "PropertyMethodContent" },
 		],
 		// 一般属性
@@ -1895,7 +1895,7 @@ const not_end_symbols = {
 	// 右侧内容部分，可以为类方法或类属性定义,以及空
 	ClassItemNormalMethodOrPropertyContent: [
 		[
-			{ type: NOT_END_SYMBOL, value: "OptionalMutiplicationSign" },
+			{ type: NOT_END_SYMBOL, value: "OptionalMultiplicationSign" },
 			END_SYMBOLS.START_BRACKET,
 			{ type: NOT_END_SYMBOL, value: "FunctionParams" },
 			END_SYMBOLS.END_BRACKET,
@@ -1927,12 +1927,12 @@ const not_end_symbols = {
 		// Expression
 		[
 			{ type: NOT_END_SYMBOL, value: "Expression" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		// VariableDeclaration
 		[
 			{ type: NOT_END_SYMBOL, value: "VariableDeclaration" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		// if 语句
 		[
@@ -1943,13 +1943,13 @@ const not_end_symbols = {
 			END_SYMBOLS.IMPORT,
 			{ type: NOT_END_SYMBOL, value: "ImportIdentify" },
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		// ExportDeclaration statement
 		[
 			END_SYMBOLS.EXPORT,
 			{ type: NOT_END_SYMBOL, value: "ExportContent" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "While" },
@@ -1959,15 +1959,15 @@ const not_end_symbols = {
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "Return" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "Break" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "Continue" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		// for循环
 		[
@@ -1989,18 +1989,18 @@ const not_end_symbols = {
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "Throw" },
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		[
 			END_SYMBOLS.DEBUGGER,
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		[
 			{ type: NOT_END_SYMBOL, value: "With" },
 		],
 		// 空语句
 		[
-			{ type: NOT_END_SYMBOL, value: "OptionalDelimter" },
+			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		// 函数与类声明，会覆盖 Expression 中表达式的解析，因为 statement 里是 Declaration
 		[
@@ -2270,7 +2270,7 @@ const transformers = (() => {
 		Term3,
 		Term18,
 		OptionalChainingAttributeName,
-		FunctinoCallParam,
+		FunctionCallParam,
 		OptionalFunctionCallParams,
 	} = not_end_symbols;
 
@@ -2930,7 +2930,6 @@ const transformers = (() => {
 			if (input?.[1]?.type === "OptionalCallExpression") {
 				const result = [
 					{
-						type: TOKEN_TYPES.MUTIPLE_SYMBOL,
 						value: "?.()",
 					},
 					(input[1].params || null),
@@ -2951,7 +2950,6 @@ const transformers = (() => {
 			if (input[1].value === ")") {
 				const result = [
 					{
-						type: TOKEN_TYPES.MUTIPLE_SYMBOL,
 						value: "()",
 					},
 					null,
@@ -2962,7 +2960,6 @@ const transformers = (() => {
 			// 带参数
 			const result = [
 				{
-					type: TOKEN_TYPES.MUTIPLE_SYMBOL,
 					value: "()",
 				},
 				input[1],
@@ -2970,11 +2967,14 @@ const transformers = (() => {
 			input[3] && result.push(input[3]);
 			return result;
 		}],
-		[FunctinoCallParam[1], input=> ({
+		[FunctionCallParam[1], input=> ({
 			type: "SpreadElement",
 			argument: input[1],
 		})],
-		[OptionalFunctionCallParams[0], input=> input.flat(Number.MAX_SAFE_INTEGER).filter(item=> item?.value !== ",")],
+		[OptionalFunctionCallParams[0], input=> input.flat(Number.MAX_SAFE_INTEGER).filter(item=> {
+			// 必须是符号token（如果不检测类型的话，可能是字符串值为","），且值为"," 的
+			return item.type === TOKEN_TYPES.SINGLE_SYMBOL && item?.value !== ",";
+		})],
 		// 可选链计算属性名
 		[OptionalChainingAttributeName[1], input => ({
 			type: "OptionalComputeAttributeExpression",
@@ -2989,7 +2989,7 @@ const transformers = (() => {
 	];
 
 	// 有效属性遍历相关的转换器，包括对象和 class 的许多部分
-	const validProperyTraversalRelatedTransformers = [
+	const validPropertyTraversalRelatedTransformers = [
 		// getter setter
 		...(() => {
 
@@ -3522,7 +3522,7 @@ const transformers = (() => {
 
 	return new Map([
 		...termsAndBasicTypesTransformers,
-		...validProperyTraversalRelatedTransformers,
+		...validPropertyTraversalRelatedTransformers,
 		[OptionalComma[0], input => (input[0])],
 		[OptionalIdentify[0], input => (input[0])],
 
@@ -3823,20 +3823,20 @@ const transformers = (() => {
 				type: "ForStatement",
 				body: input[input.length - 1],
 			};
-			const firstDelimterIndex = input.findIndex(v => v.value === ";");
-			const secondDelimterIndex = input.slice(firstDelimterIndex + 1).findIndex(v => v.value === ";") + (firstDelimterIndex + 1 /* 因为之前的索引从 0 开始，因此需要加 1 */); 
+			const firstSemicolonIndex = input.findIndex(v => v.value === ";");
+			const secondSemicolonIndex = input.slice(firstSemicolonIndex + 1).findIndex(v => v.value === ";") + (firstSemicolonIndex + 1 /* 因为之前的索引从 0 开始，因此需要加 1 */); 
 
 			// 如果第一个分号在索引2处，则表示有表达式
-			if (firstDelimterIndex === 2) {
+			if (firstSemicolonIndex === 2) {
 				result.init = input[1];
 			}
 			// 两个分号所在的索引相差超过1，则表示有表达式
-			if ((secondDelimterIndex - firstDelimterIndex) === 2) {
-				result.test = input[firstDelimterIndex + 1];
+			if ((secondSemicolonIndex - firstSemicolonIndex) === 2) {
+				result.test = input[firstSemicolonIndex + 1];
 			}
 			// 第二个分号后一个token不是结束括号，则表示有表达式
-			if (input[secondDelimterIndex + 1].value !== ")") {
-				result.update = input[secondDelimterIndex + 1];
+			if (input[secondSemicolonIndex + 1].value !== ")") {
+				result.update = input[secondSemicolonIndex + 1];
 			}
 			
 			return result;
@@ -3906,15 +3906,15 @@ const transformers = (() => {
 			if (input[1] && input[1]?.value !== ",") {
 				// 具有 as 别名
 				return {
-					type: "ModuleSpecifer",
-					name: input[0],
-					local: input[1],
+					type: "ModuleSpecifier",
+					moduleSpecifierLeftName: input[0],
+					moduleSpecifierRightName: input[1],
 				}
 			} else {
 				return {
-					type: "ModuleSpecifer",
-					name: input[0],
-					local: input[0],
+					type: "ModuleSpecifier",
+					moduleSpecifierLeftName: input[0],
+					moduleSpecifierRightName: input[0],
 				}
 			}
 		}],
@@ -4044,10 +4044,12 @@ const transformers = (() => {
 
 				// 如果有可选的逗号则需要去除
 				if (oneIndex.value === ",") {
-					input[2].forEach(specifer => {
-						specifer.type = "ImportSpecifier";
-						specifer.imported = specifer.name;
-						delete specifer.name;
+					input[2].forEach(specifier => {
+						specifier.type = "ImportSpecifier";
+						specifier.imported = specifier.moduleSpecifierLeftName;
+						specifier.local = specifier.moduleSpecifierRightName;
+						delete specifier.moduleSpecifierLeftName;
+						delete specifier.moduleSpecifierRightName;
 					});
 					// 默认导入加到最前面
 					input[2].unshift({
@@ -4056,10 +4058,12 @@ const transformers = (() => {
 					});
 					return input[2];
 				} else {
-					input[1].forEach(specifer => {
-						specifer.type = "ImportSpecifier";
-						specifer.imported = specifer.name;
-						delete specifer.name;
+					input[1].forEach(specifier => {
+						specifier.type = "ImportSpecifier";
+						specifier.imported = specifier.moduleSpecifierLeftName;
+						specifier.local = specifier.moduleSpecifierRightName;
+						delete specifier.moduleSpecifierLeftName;
+						delete specifier.moduleSpecifierRightName;
 					});
 					// 默认导入加到最前面
 					input[1].unshift({
@@ -4079,10 +4083,12 @@ const transformers = (() => {
 			}
 		}],
 		[ImportSpecifiers[1], input => {
-			input[0].forEach(specifer => {
-				specifer.type = "ImportSpecifier";
-				specifer.imported = specifer.name;
-				delete specifer.name;
+			input[0].forEach(specifier => {
+				specifier.type = "ImportSpecifier";
+				specifier.imported = specifier.moduleSpecifierLeftName;
+				specifier.local = specifier.moduleSpecifierRightName;
+				delete specifier.moduleSpecifierLeftName;
+				delete specifier.moduleSpecifierRightName;
 			});
 			return input[0];
 		}],
@@ -4105,10 +4111,13 @@ const transformers = (() => {
 			};
 		}],
 		[ExportContent[1], input => {
-			input[0].forEach(specifer => {
-				specifer.type = "ExportSpecifier";
-				specifer.exported = specifer.name;
-				delete specifer.name;
+			input[0].forEach(specifier => {
+				specifier.type = "ExportSpecifier";
+				// 导出和导入的相反（导入的，AS 左侧是 imported，右侧是 local, 导出的，左侧是 local 右侧是 exported）
+				specifier.exported = specifier.moduleSpecifierRightName;
+				specifier.local = specifier.moduleSpecifierLeftName;
+				delete specifier.moduleSpecifierRightName;
+				delete specifier.moduleSpecifierLeftName;
 			});
 			return {
 				type: "ExportNamedDeclaration",
