@@ -264,8 +264,7 @@ function scanne(code) {
 		while (true) {
 			cursor += 1;
 			if (cursor >= code.length) {
-				console.log("failed to parse string");
-				return false;
+				throw new SyntaxError("Unterminated string literal");
 			}
 			char = code[cursor];
 			// 正则[]内可以写任意字符而不需要转义，除了自己[]
@@ -369,7 +368,10 @@ function scanne(code) {
 
 		// 这里cursor已经在parseNumeric增加完成了，所以这指的是下一个字符
 		// 科学计数法处理
-		if(code[cursor] === "e") {
+		if(["e", "E"].includes(code[cursor])) {
+			// 科学计数标识，因为有大小写两种
+			const eFlag = code[cursor];
+
 			cursor += 1;
 			let eValue = "";
 			while(cursor < code.length) {
@@ -386,7 +388,7 @@ function scanne(code) {
 			if(eValue[0] === "_" || eValue[eValue.length - 1] === "_") {
 				throw new SyntaxError("Invalid or unexpected token");
 			}
-			numericLiteral = `${numericLiteral}e${eValue}`;
+			numericLiteral = `${numericLiteral}${eFlag}${eValue}`;
 		}
 		return numericLiteral;
 	}
@@ -438,6 +440,8 @@ function scanne(code) {
 			"g": true,
 			"s": true,
 			"m": true,
+			"u": true,
+			"y": true,
 		};
 		// 非空格，非符号，视为flags进行解析
 		while (cursor < code.length) {
