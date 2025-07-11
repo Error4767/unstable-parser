@@ -697,7 +697,6 @@ function scanne(code) {
 
 	// 添加末尾
 	pushParsedToken();
-	console.log(tokens);
 
 	return tokens;
 }

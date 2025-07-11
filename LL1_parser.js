@@ -1943,6 +1943,7 @@ const not_end_symbols = {
 			END_SYMBOLS.IMPORT,
 			{ type: NOT_END_SYMBOL, value: "ImportIdentify" },
 			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
+			{ type: NOT_END_SYMBOL, value: "OptionalImportAttributes" },
 			{ type: NOT_END_SYMBOL, value: "OptionalSemicolon" },
 		],
 		// ExportDeclaration statement
@@ -2145,6 +2146,45 @@ const not_end_symbols = {
 			END_SYMBOLS.NONE,
 		],
 	],
+	OptionalImportAttributes: [
+		[
+			END_SYMBOLS.WITH,
+			END_SYMBOLS.START_BLOCK,
+			{ type: NOT_END_SYMBOL, value: "ImportAttributeItems" },
+			END_SYMBOLS.END_BLOCK,
+		],
+		[
+			END_SYMBOLS.NONE,
+		],
+	],
+	ImportAttributeItems: [
+		[
+			{ type: NOT_END_SYMBOL, value: "ImportAttributeItem" },
+			{ type: NOT_END_SYMBOL, value: "ImportAttributeItems" },
+		],
+		[
+			END_SYMBOLS.NONE,
+		],
+	],
+	ImportAttributeItem: [
+		[
+			{ type: NOT_END_SYMBOL, value: "ImportAttributeKey" },
+			END_SYMBOLS[":"],
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
+			{ type: NOT_END_SYMBOL, value: "OptionalComma" },
+		],
+		[
+			END_SYMBOLS.NONE,
+		],
+	],
+	ImportAttributeKey: [
+		[
+			DATA_TYPE_SYMBOLS[TOKEN_TYPES.STRING_LITERAL],
+		],
+		[
+			END_SYMBOLS[TOKEN_TYPES.IDENTIFY],
+		]
+	],
 };
 
 const transformers = (() => {
@@ -2272,6 +2312,9 @@ const transformers = (() => {
 		OptionalChainingAttributeName,
 		FunctionCallParam,
 		OptionalFunctionCallParams,
+		OptionalImportAttributes,
+		ImportAttributeItem,
+		ImportAttributeKey,
 	} = not_end_symbols;
 
 	// 标准化转换计算表达式
@@ -2971,10 +3014,16 @@ const transformers = (() => {
 			type: "SpreadElement",
 			argument: input[1],
 		})],
-		[OptionalFunctionCallParams[0], input=> input.flat(Number.MAX_SAFE_INTEGER).filter(item=> {
-			// 必须是符号token（如果不检测类型的话，可能是字符串值为","），且值为"," 的
-			return item.type === TOKEN_TYPES.SINGLE_SYMBOL && item?.value !== ",";
-		})],
+		[OptionalFunctionCallParams[0], input=> {
+			return input.flat(Number.MAX_SAFE_INTEGER).filter(item=> {
+				// 必须是符号token（如果不检测类型的话，可能是字符串值为","），且值为"," 的
+				if(item.type === TOKEN_TYPES.SINGLE_SYMBOL && item?.value === ",") {
+					return false;
+				}else {
+					return true;
+				}
+			})
+		}],
 		// 可选链计算属性名
 		[OptionalChainingAttributeName[1], input => ({
 			type: "OptionalComputeAttributeExpression",
@@ -3967,17 +4016,25 @@ const transformers = (() => {
 		// 导入声明
 		[Statement[3], input => {
 			if (input[1].type === "Literal") {
-				return {
+				const result = {
 					type: "ImportDeclaration",
 					specifiers: [],
 					source: input[1],
 				}
+				if(input[2]?.value !== ";") {
+					result.attributes = input[2];
+				}
+				return result
 			} else {
-				return {
+				const result = {
 					type: "ImportDeclaration",
 					specifiers: input[1],
 					source: input[2],
 				}
+				if(input[3]?.value !== ";") {
+					result.attributes = input[3];
+				}
+				return result
 			}
 		}],
 		// 导出声明
@@ -4165,6 +4222,16 @@ const transformers = (() => {
 				"async": true,
 			}
 		})],
+		[OptionalImportAttributes[0], input=> input.slice(2, -1)],
+		[ImportAttributeKey[0], input=> input[0]],
+		[ImportAttributeKey[1], input=> input[0]],
+		[ImportAttributeItem[0], input=> {
+			return {
+				type: "ImportAttribute",
+				key: input[0],
+				value: input[2],
+			}
+		}]
 	]);
 })();
 
@@ -4194,6 +4261,8 @@ const flatProductions = [
 	not_end_symbols.Term1[0],
 	// class 项拍平
 	not_end_symbols.ClassItems[0],
+	// 导入属性拍平
+	not_end_symbols.ImportAttributeItems[0],
 ];
 
 // 获得 First 集
