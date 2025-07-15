@@ -2656,6 +2656,7 @@ const transformers = (() => {
 				return {
 					type: "Property",
 					kind: "init",
+					shorthand: true,
 					method: false,
 					computed: false,
 					key: input[0],
@@ -3611,11 +3612,17 @@ const transformers = (() => {
 				key: input[0],
 				kind: "init",
 				method: false,
+				// 默认是true（如果没有多余部分，有多余部分的情况下下面会具体设置）
+				shorthand: true,
 			}
 
 			input.slice(1).forEach(item => {
+				// 对于标识符右侧可能有重命名语法，有的情况下，shorthand为false
 				if (item.type === "DestructureRename") {
 					result.value = item.value;
+					result.shorthand = false;
+				}else {
+					result.shorthand = true;
 				}
 				if (item.type === "DestructureDefaultValue") {
 					// 重命名
